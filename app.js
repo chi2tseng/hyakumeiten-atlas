@@ -262,9 +262,21 @@ function openDetail(r) {
 
   const reviewsHtml = (r.rv && r.rv.length)
     ? r.rv.map(rv => {
-        // rv is "title｜body" string
-        const [title, body] = (rv || '').split('｜');
-        return `<div class="review-item"><div class="review-title">${escapeHtml(title || '')}</div>${body ? `<div class="review-body">${escapeHtml(body)}</div>` : ''}</div>`;
+        // rv is either an object {t, b, r, d} OR legacy string "title｜body"
+        let title, body, rating, date;
+        if (typeof rv === 'string') {
+          [title, body] = rv.split('｜');
+        } else {
+          ({ t: title, b: body, r: rating, d: date } = rv);
+        }
+        return `<div class="review-item">
+          <div class="review-head">
+            ${rating ? `<span class="review-rating">★ ${escapeHtml(rating)}</span>` : ''}
+            ${date ? `<span class="review-date">${escapeHtml(date)}</span>` : ''}
+          </div>
+          ${title ? `<div class="review-title">${escapeHtml(title)}</div>` : ''}
+          ${body ? `<div class="review-body">${escapeHtml(body)}</div>` : ''}
+        </div>`;
       }).join('')
     : `<div class="review-body" style="color:var(--steel)">${dict['detail-no-reviews']}</div>`;
 
@@ -284,21 +296,37 @@ function openDetail(r) {
     </div>
 
     <div class="info-rows">
-      ${r.a ? `<div class="info-row"><span class="label">${dict['detail-address']}</span><span class="value">${escapeHtml(r.a)}</span></div>` : ''}
-      ${r.d ? `<div class="info-row"><span class="label">${dict['detail-dinner']}</span><span class="value">${escapeHtml(r.d)}</span></div>` : ''}
-      ${r.l ? `<div class="info-row"><span class="label">${dict['detail-lunch']}</span><span class="value">${escapeHtml(r.l)}</span></div>` : ''}
+      ${r.a ? `<div class="info-row"><span class="label"><span class="msi size-16">place</span> ${dict['detail-address']}</span><span class="value">${escapeHtml(r.a)}</span></div>` : ''}
+      ${r.d ? `<div class="info-row"><span class="label"><span class="msi size-16">restaurant</span> ${dict['detail-dinner']}</span><span class="value">${escapeHtml(r.d)}</span></div>` : ''}
+      ${r.l ? `<div class="info-row"><span class="label"><span class="msi size-16">brunch_dining</span> ${dict['detail-lunch']}</span><span class="value">${escapeHtml(r.l)}</span></div>` : ''}
+      ${r.y ? `<div class="info-row"><span class="label"><span class="msi size-16">emoji_events</span> ${dict['detail-awards']}</span><span class="value">${escapeHtml(r.y)}</span></div>` : ''}
     </div>
 
     <div class="action-row">
       <a class="action-btn action-btn-primary" href="${gmaps}" target="_blank" rel="noopener">
-        🗺 ${dict['detail-gmap']}
+        <span class="msi size-16">map</span>
+        ${dict['detail-gmap']}
       </a>
       <a class="action-btn" href="${escapeHtml(r.u)}" target="_blank" rel="noopener">
-        ✦ ${dict['detail-tabelog']}
+        <span class="msi size-16">open_in_new</span>
+        ${dict['detail-tabelog']}
       </a>
     </div>
 
-    <div class="section-title">${dict['detail-reviews']}</div>
+    ${(r.ph && r.ph.length) ? `
+      <div class="section-title"><span class="msi size-16">photo_library</span> ${dict['detail-photos']}</div>
+      <div class="photo-grid">
+        ${r.ph.slice(0, 12).map(p => `<a class="photo-tile" href="${escapeHtml(p)}" target="_blank" rel="noopener"><img loading="lazy" src="${escapeHtml(p)}" alt=""/></a>`).join('')}
+      </div>
+    ` : `
+      <div class="section-title"><span class="msi size-16">photo_library</span> ${dict['detail-photos']}</div>
+      <div class="photo-placeholder">
+        <span class="msi size-24">image_search</span>
+        <p>${dict['detail-photos-soon']}</p>
+      </div>
+    `}
+
+    <div class="section-title"><span class="msi size-16">reviews</span> ${dict['detail-reviews']}</div>
     ${reviewsHtml}
   `;
   drawer.classList.add('open');

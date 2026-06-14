@@ -56,6 +56,22 @@
 
 * { box-sizing: border-box; margin: 0; padding: 0; }
 
+/* Material Symbols inline icon */
+.msi {
+  font-family: 'Material Symbols Rounded';
+  font-variation-settings: 'opsz' 24, 'wght' 400, 'FILL' 0, 'GRAD' 0;
+  font-size: 18px;
+  line-height: 1;
+  display: inline-block;
+  vertical-align: middle;
+  -webkit-font-feature-settings: 'liga';
+  font-feature-settings: 'liga';
+}
+.msi.filled { font-variation-settings: 'opsz' 24, 'wght' 500, 'FILL' 1, 'GRAD' 0; }
+.msi.size-16 { font-size: 16px; }
+.msi.size-20 { font-size: 20px; }
+.msi.size-24 { font-size: 24px; }
+
 html, body {
   height: 100%;
   font-family: var(--ff-sans);
@@ -426,6 +442,46 @@ select.text-input { padding: 0 var(--md); }
   color: var(--steel);
   margin: var(--xl) 0 var(--md);
 }
+/* photo grid */
+.photo-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 6px;
+  margin-bottom: var(--md);
+}
+.photo-tile {
+  display: block;
+  aspect-ratio: 1 / 1;
+  background: var(--surface);
+  border-radius: var(--r-sm);
+  overflow: hidden;
+  position: relative;
+}
+.photo-tile img {
+  width: 100%; height: 100%;
+  object-fit: cover;
+  transition: transform 250ms ease;
+}
+.photo-tile:hover img { transform: scale(1.05); }
+.photo-placeholder {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--xs);
+  padding: var(--xxl);
+  background: var(--cream-light);
+  border: 1px dashed var(--beige-deep);
+  border-radius: var(--r-lg);
+  color: var(--steel);
+  font-size: 13px;
+  margin-bottom: var(--md);
+}
+
+.info-row .label .msi { margin-right: 2px; color: var(--stone); }
+.action-btn .msi { margin-right: 2px; }
+.section-title .msi { margin-right: 4px; color: var(--steel); vertical-align: -2px; }
+
 .review-item {
   background: var(--cream-light);
   border: 1px solid var(--beige-deep);
@@ -433,6 +489,19 @@ select.text-input { padding: 0 var(--md); }
   padding: var(--md);
   margin-bottom: var(--sm);
 }
+.review-head {
+  display: flex; align-items: center; gap: var(--xs);
+  margin-bottom: var(--xs);
+  font-size: 12px;
+  color: var(--steel);
+}
+.review-rating {
+  color: var(--primary);
+  font-weight: 600;
+  font-family: var(--ff-editorial);
+  font-size: 16px;
+}
+.review-date { color: var(--stone); }
 .review-title {
   font-size: 14px;
   font-weight: 500;

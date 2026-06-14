@@ -26,12 +26,29 @@ if (fs.existsSync(`${SOURCE}/japan_coords.ndjson`)) {
 }
 
 const reviews = new Map();
-if (fs.existsSync(`${SOURCE}/japan_reviews.ndjson`)) {
-  for (const line of fs.readFileSync(`${SOURCE}/japan_reviews.ndjson`, 'utf-8').split('\n')) {
+// prefer japan_reviews20.ndjson (20+ per restaurant) over japan_reviews.ndjson (3 per)
+for (const f of ['japan_reviews20.ndjson', 'japan_reviews.ndjson']) {
+  if (!fs.existsSync(`${SOURCE}/${f}`)) continue;
+  for (const line of fs.readFileSync(`${SOURCE}/${f}`, 'utf-8').split('\n')) {
     if (!line.trim()) continue;
     try {
       const r = JSON.parse(line);
-      if (r.reviews && r.reviews.length) reviews.set(r.url, r.reviews);
+      if (r.reviews && r.reviews.length && !reviews.has(r.url)) reviews.set(r.url, r.reviews);
+    } catch {}
+  }
+}
+
+const photos = new Map();
+if (fs.existsSync(`${SOURCE}/japan_photos.ndjson`)) {
+  for (const line of fs.readFileSync(`${SOURCE}/japan_photos.ndjson`, 'utf-8').split('\n')) {
+    if (!line.trim()) continue;
+    try {
+      const r = JSON.parse(line);
+      if (r.photos && r.photos.length) {
+        // extract just src URLs; dedup
+        const urls = [...new Set(r.photos.map(p => p.src || p).filter(Boolean))];
+        if (urls.length) photos.set(r.url, urls);
+      }
     } catch {}
   }
 }
@@ -88,7 +105,18 @@ for (const [url, listing] of Object.entries(listings)) {
   };
   if (co) { rec.lat = co[0]; rec.lng = co[1]; }
   if (rv && rv.length) {
-    rec.rv = rv.map(x => (x.title || '') + (x.body ? '｜' + x.body.slice(0, 200) : ''));
+    // store as compact objects: {t: title, b: body (trim), r: rating, d: date}
+    rec.rv = rv.slice(0, 24).map(x => {
+      const obj = {};
+      if (x.title) obj.t = x.title.slice(0, 100);
+      if (x.body) obj.b = x.body.slice(0, 280);
+      if (x.rating) obj.r = String(x.rating);
+      if (x.date) obj.d = x.date.slice(0, 24);
+      return obj;
+    });
+  }
+  if (photos.has(url)) {
+    rec.ph = photos.get(url).slice(0, 24);
   }
   records.push(rec);
 }
