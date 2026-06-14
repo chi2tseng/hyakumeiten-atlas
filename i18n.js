@@ -110,7 +110,7 @@ window.I18N = {
     'search-ph': '店名 / 地址 / 分類…',
     'pref-label': '都道府縣',
     'cat-label': '分類',
-    'price-label': '夜予算上限',
+    'price-label': '晚餐預算上限',
     'rating-label': '最低評分',
     'all': '全部',
     'stats': '家符合條件',
