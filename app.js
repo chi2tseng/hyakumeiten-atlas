@@ -40,6 +40,18 @@ function initMap() {
     STATE.cluster = L.markerClusterGroup({ chunkedLoading: true, maxClusterRadius: 50, spiderfyOnMaxZoom: true });
     STATE.map.addLayer(STATE.cluster);
   }
+  // re-render list whenever viewport moves/zooms (debounced)
+  let renderTo;
+  STATE.map.on('moveend zoomend', () => {
+    clearTimeout(renderTo);
+    renderTo = setTimeout(() => renderList(), 150);
+  });
+}
+
+function isInViewport(r) {
+  if (typeof r.lat !== 'number' || typeof r.lng !== 'number') return false;
+  if (!STATE.map) return true;
+  return STATE.map.getBounds().contains([r.lat, r.lng]);
 }
 
 function customPin(rating) {
@@ -212,9 +224,19 @@ function applyFilters() {
 // ===== Sidebar list =====
 function renderList() {
   const list = document.getElementById('result-list');
-  // virtualize: show only first 200 in DOM
-  const top = STATE.filtered
-    .filter(r => r.r) // has rating
+  // viewport-scoped: only items currently visible on map
+  const inView = STATE.filtered.filter(isInViewport);
+  // update stats to show viewport count vs total filtered
+  const total = STATE.filtered.length;
+  const visible = inView.length;
+  const statsEl = document.getElementById('stats-count');
+  if (statsEl) {
+    statsEl.textContent = visible === total
+      ? total.toLocaleString()
+      : `${visible.toLocaleString()} / ${total.toLocaleString()}`;
+  }
+  // sort by rating, cap at 200 for DOM perf
+  const top = inView
     .sort((a, b) => (parseFloat(b.r) || 0) - (parseFloat(a.r) || 0))
     .slice(0, 200);
   if (top.length === 0) {
