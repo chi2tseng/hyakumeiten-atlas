@@ -289,6 +289,48 @@ select.text-input { padding: 0 var(--md); }
   height: 100%;
   background: var(--cream-light);
 }
+
+/* user location marker — Google-style blue dot with pulsing halo */
+.user-dot {
+  filter: drop-shadow(0 1px 4px rgba(66,133,244,0.5));
+}
+.user-pulse path {
+  animation: userPulse 2s ease-out infinite;
+  transform-origin: center;
+  transform-box: fill-box;
+}
+@keyframes userPulse {
+  0%   { opacity: 0.40; transform: scale(0.45); }
+  70%  { opacity: 0.10; transform: scale(1.10); }
+  100% { opacity: 0.00; transform: scale(1.30); }
+}
+
+/* recenter button — bottom-right of map section */
+.recenter-btn {
+  position: absolute;
+  right: 16px;
+  bottom: 96px;
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  background: var(--canvas);
+  border: 1px solid var(--hairline);
+  color: var(--steel);
+  box-shadow: rgba(0,0,0,0.16) 0 2px 6px;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  z-index: 400;
+  transition: background 150ms ease, color 150ms ease, transform 200ms ease;
+}
+.recenter-btn.visible { display: inline-flex; }
+.recenter-btn:hover { background: var(--surface); color: var(--ink); }
+.recenter-btn:active { transform: scale(0.94); }
+.recenter-btn .msi { font-size: 22px; color: var(--primary); }
+.recenter-btn.loading .msi {
+  animation: spin 0.9s linear infinite;
+}
 .leaflet-container {
   font-family: var(--ff-sans);
   background: var(--cream-light);

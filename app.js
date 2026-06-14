@@ -180,7 +180,8 @@ function setupListeners() {
   document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeDrawer(); });
 
   // locate
-  document.getElementById('locate-btn').addEventListener('click', locateUser);
+  document.getElementById('locate-btn').addEventListener('click', () => locateUser(false));
+  document.getElementById('recenter-btn').addEventListener('click', () => locateUser(true));
 }
 
 function applyFilters() {
@@ -337,30 +338,53 @@ function closeDrawer() {
 }
 
 // ===== Geolocation =====
-function locateUser() {
+function setUserMarker(lat, lng) {
+  STATE.userLocation = { lat, lng };
+  // remove old layers
+  if (STATE.userAccLayer) STATE.map.removeLayer(STATE.userAccLayer);
+  if (STATE.userDotLayer) STATE.map.removeLayer(STATE.userDotLayer);
+  // outer pulsing accuracy ring (soft blue glow)
+  STATE.userAccLayer = L.circleMarker([lat, lng], {
+    radius: 22, color: '#4285F4', fillColor: '#4285F4', fillOpacity: 0.15, weight: 0,
+    className: 'user-pulse',
+  }).addTo(STATE.map);
+  // inner solid blue dot (Google-style)
+  STATE.userDotLayer = L.circleMarker([lat, lng], {
+    radius: 8, color: '#ffffff', fillColor: '#4285F4', fillOpacity: 1, weight: 3,
+    className: 'user-dot',
+  }).addTo(STATE.map);
+  // show recenter button
+  document.getElementById('recenter-btn').classList.add('visible');
+}
+
+function locateUser(recenter) {
   if (!navigator.geolocation) {
     alert('Geolocation not supported in this browser');
     return;
   }
-  const btn = document.getElementById('locate-btn');
+  const btn = recenter ? document.getElementById('recenter-btn') : document.getElementById('locate-btn');
   const original = btn.innerHTML;
-  btn.innerHTML = '<span>…</span>';
+  btn.classList.add('loading');
   btn.disabled = true;
+  // if already located + recenter just flies to known location
+  if (recenter && STATE.userLocation) {
+    STATE.map.flyTo([STATE.userLocation.lat, STATE.userLocation.lng], 14, { duration: 0.6 });
+    btn.classList.remove('loading');
+    btn.disabled = false;
+    return;
+  }
   navigator.geolocation.getCurrentPosition(
     (pos) => {
       const { latitude, longitude } = pos.coords;
-      STATE.userLocation = { lat: latitude, lng: longitude };
-      STATE.map.flyTo([latitude, longitude], 13, { duration: 0.6 });
-      L.circleMarker([latitude, longitude], {
-        radius: 8, color: '#fa520f', fillColor: '#fa520f', fillOpacity: 0.7, weight: 2,
-      }).addTo(STATE.map);
-      btn.innerHTML = original;
+      setUserMarker(latitude, longitude);
+      STATE.map.flyTo([latitude, longitude], 14, { duration: 0.6 });
+      btn.classList.remove('loading');
       btn.disabled = false;
     },
     (err) => {
       console.warn(err);
       alert('無法取得位置 / Cannot get location: ' + err.message);
-      btn.innerHTML = original;
+      btn.classList.remove('loading');
       btn.disabled = false;
     },
     { enableHighAccuracy: true, timeout: 10000 }
