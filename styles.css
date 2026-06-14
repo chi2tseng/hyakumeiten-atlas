@@ -264,11 +264,36 @@ select.text-input { padding: 0 var(--md); }
 }
 .rest-card:hover { background: var(--surface); }
 .rest-card.focused { background: var(--cream-light); }
+.rest-card {
+  display: flex;
+  gap: var(--sm);
+}
+.rest-card-thumb {
+  width: 56px; height: 56px;
+  border-radius: var(--r-sm);
+  background: var(--surface);
+  overflow: hidden;
+  flex-shrink: 0;
+}
+.rest-card-thumb img {
+  width: 100%; height: 100%;
+  object-fit: cover;
+  display: block;
+}
+.rest-card-body { flex: 1; min-width: 0; }
 .rest-card-name {
   font-size: 15px;
   font-weight: 500;
   color: var(--ink);
   margin-bottom: 2px;
+}
+.section-title .count {
+  font-family: var(--ff-editorial);
+  color: var(--primary);
+  margin-left: 4px;
+  text-transform: none;
+  font-size: 13px;
+  letter-spacing: 0;
 }
 .rest-card-meta {
   font-size: 12px;
@@ -484,6 +509,20 @@ select.text-input { padding: 0 var(--md); }
   color: var(--steel);
   margin: var(--xl) 0 var(--md);
 }
+/* cover photo (hero) */
+.photo-cover {
+  margin: 0 calc(var(--xl) * -1) var(--md);
+  aspect-ratio: 16 / 9;
+  background: var(--surface);
+  overflow: hidden;
+  position: relative;
+}
+.photo-cover img {
+  width: 100%; height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
 /* photo grid */
 .photo-grid {
   display: grid;

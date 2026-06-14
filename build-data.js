@@ -38,16 +38,34 @@ for (const f of ['japan_reviews20.ndjson', 'japan_reviews.ndjson']) {
   }
 }
 
-const photos = new Map();
+const photos = new Map(); // url → { cover, photos[] }
+// HEADER photos first (cover + 6 strip thumbs from main page)
+if (fs.existsSync(`${SOURCE}/japan_header_photos.ndjson`)) {
+  for (const line of fs.readFileSync(`${SOURCE}/japan_header_photos.ndjson`, 'utf-8').split('\n')) {
+    if (!line.trim()) continue;
+    try {
+      const r = JSON.parse(line);
+      if (r.cover || (r.photos && r.photos.length)) {
+        const urls = [...new Set([r.cover, ...(r.photos || [])].filter(Boolean))];
+        photos.set(r.url, { cover: r.cover || urls[0], photos: urls });
+      }
+    } catch {}
+  }
+}
+// GALLERY photos second (up to 20 from dtlphotolst) — merge with header
 if (fs.existsSync(`${SOURCE}/japan_photos.ndjson`)) {
   for (const line of fs.readFileSync(`${SOURCE}/japan_photos.ndjson`, 'utf-8').split('\n')) {
     if (!line.trim()) continue;
     try {
       const r = JSON.parse(line);
       if (r.photos && r.photos.length) {
-        // extract just src URLs; dedup
-        const urls = [...new Set(r.photos.map(p => p.src || p).filter(Boolean))];
-        if (urls.length) photos.set(r.url, urls);
+        const galleryUrls = r.photos.map(p => p.src || p).filter(Boolean);
+        const existing = photos.get(r.url) || { cover: null, photos: [] };
+        const merged = [...new Set([...existing.photos, ...galleryUrls])];
+        photos.set(r.url, {
+          cover: existing.cover || galleryUrls[0],
+          photos: merged,
+        });
       }
     } catch {}
   }
@@ -116,7 +134,9 @@ for (const [url, listing] of Object.entries(listings)) {
     });
   }
   if (photos.has(url)) {
-    rec.ph = photos.get(url).slice(0, 24);
+    const ph = photos.get(url);
+    if (ph.cover) rec.cv = ph.cover;
+    if (ph.photos && ph.photos.length) rec.ph = ph.photos.slice(0, 24);
   }
   records.push(rec);
 }

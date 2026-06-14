@@ -257,16 +257,20 @@ function renderList() {
     const prefTr = window.translatePref(r.p||'', STATE.lang);
     const firstCat = (r.c||'').split('/')[0] || '';
     const catTr = window.translateCat(firstCat, STATE.lang);
+    const thumb = r.cv || (r.ph && r.ph[0]) || '';
     return `
     <div class="rest-card" data-url="${encodeURIComponent(r.u)}">
-      <div class="rest-card-name">${escapeHtml(r.n)}</div>
-      <div class="rest-card-meta">
-        <span>${escapeHtml(prefTr)}</span>
-        <span>·</span>
-        <span>${escapeHtml(catTr)}</span>
-        <span>·</span>
-        <span class="rest-card-rating">★ ${escapeHtml(r.r||'')}</span>
-        ${r.dl ? `<span>·</span><span>¥${(r.dl/1000).toFixed(0)}k~</span>` : ''}
+      ${thumb ? `<div class="rest-card-thumb"><img loading="lazy" src="${escapeHtml(thumb)}" alt=""/></div>` : `<div class="rest-card-thumb"></div>`}
+      <div class="rest-card-body">
+        <div class="rest-card-name">${escapeHtml(r.n)}</div>
+        <div class="rest-card-meta">
+          <span>${escapeHtml(prefTr)}</span>
+          <span>·</span>
+          <span>${escapeHtml(catTr)}</span>
+          <span>·</span>
+          <span class="rest-card-rating">★ ${escapeHtml(r.r||'')}</span>
+          ${r.dl ? `<span>·</span><span>¥${(r.dl/1000).toFixed(0)}k~</span>` : ''}
+        </div>
       </div>
     </div>`;}).join('');
   list.querySelectorAll('.rest-card').forEach(card => {
@@ -346,11 +350,14 @@ function openDetail(r) {
       </a>
     </div>
 
-    ${(r.ph && r.ph.length) ? `
-      <div class="section-title"><span class="msi size-16">photo_library</span> ${dict['detail-photos']}</div>
-      <div class="photo-grid">
-        ${r.ph.slice(0, 12).map(p => `<a class="photo-tile" href="${escapeHtml(p)}" target="_blank" rel="noopener"><img loading="lazy" src="${escapeHtml(p)}" alt=""/></a>`).join('')}
-      </div>
+    ${(r.cv || (r.ph && r.ph.length)) ? `
+      ${r.cv ? `<div class="photo-cover"><img loading="lazy" src="${escapeHtml(r.cv)}" alt=""/></div>` : ''}
+      <div class="section-title"><span class="msi size-16">photo_library</span> ${dict['detail-photos']}${r.ph ? ` <span class="count">${r.ph.length}</span>` : ''}</div>
+      ${r.ph && r.ph.length ? `
+        <div class="photo-grid">
+          ${r.ph.slice(0, 12).map(p => `<a class="photo-tile" href="${escapeHtml(p)}" target="_blank" rel="noopener"><img loading="lazy" src="${escapeHtml(p)}" alt=""/></a>`).join('')}
+        </div>
+      ` : ''}
     ` : `
       <div class="section-title"><span class="msi size-16">photo_library</span> ${dict['detail-photos']}</div>
       <div class="photo-placeholder">
