@@ -1,0 +1,11 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "hyakumeiten-static",
+      "runtimeExecutable": "python",
+      "runtimeArgs": ["-m", "http.server", "5601"],
+      "port": 5601
+    }
+  ]
+}

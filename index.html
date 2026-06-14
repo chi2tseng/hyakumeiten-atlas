@@ -109,13 +109,18 @@
     <section class="map-section">
       <div id="map"></div>
     </section>
-  </main>
 
-  <!-- Restaurant detail drawer -->
+  <!-- Restaurant detail drawer (replaces sidebar from left) -->
   <aside class="drawer" id="detail-drawer">
-    <button class="drawer-close" id="drawer-close" aria-label="Close">×</button>
+    <header class="drawer-header">
+      <button class="drawer-back" id="drawer-close" aria-label="Back">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"></polyline></svg>
+        <span data-i18n="back">返回</span>
+      </button>
+    </header>
     <div class="drawer-content" id="drawer-content"></div>
   </aside>
+  </main>
 
   <!-- Sunset stripe brand band -->
   <div class="sunset-stripe-band"></div>

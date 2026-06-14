@@ -1,6 +1,107 @@
+// Category translation map: Japanese-original → { zh, en, ja }
+window.CAT_I18N = {
+  '食堂':        { zh: '食堂',       en: 'Diner',           ja: '食堂' },
+  'スペイン料理': { zh: '西班牙料理', en: 'Spanish',         ja: 'スペイン料理' },
+  'ハンバーガー': { zh: '漢堡',       en: 'Burger',          ja: 'ハンバーガー' },
+  'とんかつ':    { zh: '炸豬排',     en: 'Tonkatsu',        ja: 'とんかつ' },
+  '鳥料理':      { zh: '雞肉料理',   en: 'Chicken Cuisine', ja: '鳥料理' },
+  '立ち飲み':    { zh: '站立飲酒',   en: 'Standing Bar',    ja: '立ち飲み' },
+  'お好み焼き':  { zh: '大阪燒',     en: 'Okonomiyaki',     ja: 'お好み焼き' },
+  '創作料理':    { zh: '創意料理',   en: 'Creative',        ja: '創作料理' },
+  'ピザ':        { zh: '披薩',       en: 'Pizza',           ja: 'ピザ' },
+  '天ぷら':      { zh: '天婦羅',     en: 'Tempura',         ja: '天ぷら' },
+  'すき焼き・しゃぶしゃぶ': { zh: '壽喜燒/涮涮鍋', en: 'Sukiyaki/Shabu', ja: 'すき焼き・しゃぶしゃぶ' },
+  'うなぎ':      { zh: '鰻魚',       en: 'Unagi',           ja: 'うなぎ' },
+  '餃子':        { zh: '餃子',       en: 'Gyoza',           ja: '餃子' },
+  'アイス・ジェラート': { zh: '冰品/義式冰淇淋', en: 'Ice/Gelato', ja: 'アイス・ジェラート' },
+  'バー':        { zh: '酒吧',       en: 'Bar',             ja: 'バー' },
+  '喫茶店':      { zh: '咖啡館',     en: 'Kissaten Café',   ja: '喫茶店' },
+  '中国料理':    { zh: '中華料理',   en: 'Chinese',         ja: '中華料理' },
+  'ラーメン':    { zh: '拉麵',       en: 'Ramen',           ja: 'ラーメン' },
+  '焼き鳥':      { zh: '烤雞串',     en: 'Yakitori',        ja: '焼き鳥' },
+  '焼鳥':        { zh: '烤雞串',     en: 'Yakitori',        ja: '焼鳥' },
+  '焼肉':        { zh: '燒肉',       en: 'Yakiniku',        ja: '焼肉' },
+  '居酒屋':      { zh: '居酒屋',     en: 'Izakaya',         ja: '居酒屋' },
+  'ステーキ・鉄板焼き': { zh: '牛排/鐵板燒', en: 'Steak/Teppanyaki', ja: 'ステーキ・鉄板焼き' },
+  'そば':        { zh: '蕎麥麵',     en: 'Soba',            ja: 'そば' },
+  'カフェ':      { zh: '咖啡廳',     en: 'Café',            ja: 'カフェ' },
+  '洋食':        { zh: '日式洋食',   en: 'Yōshoku',         ja: '洋食' },
+  'フレンチ':    { zh: '法式料理',   en: 'French',          ja: 'フレンチ' },
+  'イタリアン':  { zh: '義式料理',   en: 'Italian',         ja: 'イタリアン' },
+  '日本料理':    { zh: '日本料理',   en: 'Japanese',        ja: '日本料理' },
+  '寿司':        { zh: '壽司',       en: 'Sushi',           ja: '寿司' },
+  'カレー':      { zh: '咖哩',       en: 'Curry',           ja: 'カレー' },
+  'アジア・エスニック': { zh: '亞洲料理', en: 'Asian/Ethnic', ja: 'アジア・エスニック' },
+  'うどん':      { zh: '烏龍麵',     en: 'Udon',            ja: 'うどん' },
+  '和菓子・甘味処': { zh: '和菓子',  en: 'Wagashi',         ja: '和菓子・甘味処' },
+  'スイーツ':    { zh: '甜點',       en: 'Sweets',          ja: 'スイーツ' },
+  'パン':        { zh: '麵包',       en: 'Bakery',          ja: 'パン' },
+};
+
+// Prefecture translation: Japanese-kanji → { zh, en, ja }
+window.PREF_I18N = {
+  '東京':   { zh: '東京',   en: 'Tokyo',     ja: '東京' },
+  '大阪':   { zh: '大阪',   en: 'Osaka',     ja: '大阪' },
+  '京都':   { zh: '京都',   en: 'Kyoto',     ja: '京都' },
+  '北海道': { zh: '北海道', en: 'Hokkaidō',  ja: '北海道' },
+  '沖縄':   { zh: '沖繩',   en: 'Okinawa',   ja: '沖縄' },
+  '福岡':   { zh: '福岡',   en: 'Fukuoka',   ja: '福岡' },
+  '愛知':   { zh: '愛知',   en: 'Aichi',     ja: '愛知' },
+  '神奈川': { zh: '神奈川', en: 'Kanagawa',  ja: '神奈川' },
+  '兵庫':   { zh: '兵庫',   en: 'Hyōgo',     ja: '兵庫' },
+  '広島':   { zh: '廣島',   en: 'Hiroshima', ja: '広島' },
+  '千葉':   { zh: '千葉',   en: 'Chiba',     ja: '千葉' },
+  '埼玉':   { zh: '埼玉',   en: 'Saitama',   ja: '埼玉' },
+  '香川':   { zh: '香川',   en: 'Kagawa',    ja: '香川' },
+  '静岡':   { zh: '靜岡',   en: 'Shizuoka',  ja: '静岡' },
+  '岐阜':   { zh: '岐阜',   en: 'Gifu',      ja: '岐阜' },
+  '長野':   { zh: '長野',   en: 'Nagano',    ja: '長野' },
+  '宮城':   { zh: '宮城',   en: 'Miyagi',    ja: '宮城' },
+  '石川':   { zh: '石川',   en: 'Ishikawa',  ja: '石川' },
+  '宮崎':   { zh: '宮崎',   en: 'Miyazaki',  ja: '宮崎' },
+  '奈良':   { zh: '奈良',   en: 'Nara',      ja: '奈良' },
+  '三重':   { zh: '三重',   en: 'Mie',       ja: '三重' },
+  '茨城':   { zh: '茨城',   en: 'Ibaraki',   ja: '茨城' },
+  '栃木':   { zh: '櫪木',   en: 'Tochigi',   ja: '栃木' },
+  '新潟':   { zh: '新潟',   en: 'Niigata',   ja: '新潟' },
+  '熊本':   { zh: '熊本',   en: 'Kumamoto',  ja: '熊本' },
+  '秋田':   { zh: '秋田',   en: 'Akita',     ja: '秋田' },
+  '群馬':   { zh: '群馬',   en: 'Gunma',     ja: '群馬' },
+  '福島':   { zh: '福島',   en: 'Fukushima', ja: '福島' },
+  '滋賀':   { zh: '滋賀',   en: 'Shiga',     ja: '滋賀' },
+  '鹿児島': { zh: '鹿兒島', en: 'Kagoshima', ja: '鹿児島' },
+  '長崎':   { zh: '長崎',   en: 'Nagasaki',  ja: '長崎' },
+  '富山':   { zh: '富山',   en: 'Toyama',    ja: '富山' },
+  '愛媛':   { zh: '愛媛',   en: 'Ehime',     ja: '愛媛' },
+  '岡山':   { zh: '岡山',   en: 'Okayama',   ja: '岡山' },
+  '山形':   { zh: '山形',   en: 'Yamagata',  ja: '山形' },
+  '山梨':   { zh: '山梨',   en: 'Yamanashi', ja: '山梨' },
+  '青森':   { zh: '青森',   en: 'Aomori',    ja: '青森' },
+  '岩手':   { zh: '岩手',   en: 'Iwate',     ja: '岩手' },
+  '徳島':   { zh: '德島',   en: 'Tokushima', ja: '徳島' },
+  '大分':   { zh: '大分',   en: 'Ōita',      ja: '大分' },
+  '高知':   { zh: '高知',   en: 'Kōchi',     ja: '高知' },
+  '和歌山': { zh: '和歌山', en: 'Wakayama',  ja: '和歌山' },
+  '佐賀':   { zh: '佐賀',   en: 'Saga',      ja: '佐賀' },
+  '福井':   { zh: '福井',   en: 'Fukui',     ja: '福井' },
+  '山口':   { zh: '山口',   en: 'Yamaguchi', ja: '山口' },
+  '島根':   { zh: '島根',   en: 'Shimane',   ja: '島根' },
+  '鳥取':   { zh: '鳥取',   en: 'Tottori',   ja: '鳥取' },
+};
+
+window.translateCat = function(orig, lang) {
+  const m = window.CAT_I18N[orig];
+  return (m && m[lang]) || orig;
+};
+window.translatePref = function(orig, lang) {
+  const m = window.PREF_I18N[orig];
+  return (m && m[lang]) || orig;
+};
+
 // i18n strings — 中文 / 英文 / 日文
 window.I18N = {
   zh: {
+    'back': '返回',
     'promo': 'Tabelog 過去10年 · 12,280家全國百名店 · 點地圖開始探索',
     'brand': '百名店 Atlas',
     'locate': '使用我的位置',
@@ -65,8 +166,10 @@ window.I18N = {
     'detail-near': 'Nearby suggestions',
     'loading': 'Loading…',
     'lang-name': 'English',
+    'back': 'Back',
   },
   ja: {
+    'back': '戻る',
     'promo': '食べログ百名店 過去10年 · 全国 12,280 軒 · ピンをクリックして探索',
     'brand': '百名店アトラス',
     'locate': '現在地を使用',

@@ -94,18 +94,32 @@ function populateFilters() {
   // prefecture order — major first
   const major = ['東京','大阪','京都','北海道','沖縄','福岡','愛知','神奈川','兵庫','広島','千葉','埼玉'];
   const others = [...prefs].filter(p => !major.includes(p)).sort();
-  const prefList = [...major.filter(p => prefs.has(p)), ...others];
+  STATE.prefList = [...major.filter(p => prefs.has(p)), ...others];
+  STATE.catList = [...cats].sort();
+  renderFilterOptions();
+}
 
+function renderFilterOptions() {
+  const dict = window.I18N[STATE.lang];
   const prefSel = document.getElementById('pref-select');
-  for (const p of prefList) {
+  const catSel  = document.getElementById('cat-select');
+  // remember selected
+  const prevPref = prefSel.value;
+  const prevCat  = catSel.value;
+  prefSel.innerHTML = `<option value="">${dict.all}</option>`;
+  for (const p of STATE.prefList) {
     const o = document.createElement('option');
-    o.value = p; o.textContent = p;
+    o.value = p;
+    o.textContent = window.translatePref(p, STATE.lang);
+    if (p === prevPref) o.selected = true;
     prefSel.appendChild(o);
   }
-  const catSel = document.getElementById('cat-select');
-  for (const c of [...cats].sort()) {
+  catSel.innerHTML = `<option value="">${dict.all}</option>`;
+  for (const c of STATE.catList) {
     const o = document.createElement('option');
-    o.value = c; o.textContent = c;
+    o.value = c;
+    o.textContent = window.translateCat(c, STATE.lang);
+    if (c === prevCat) o.selected = true;
     catSel.appendChild(o);
   }
 }
@@ -118,6 +132,10 @@ function setupListeners() {
       b.classList.add('active');
       STATE.lang = b.dataset.lang;
       applyI18n(STATE.lang);
+      // re-render UI that contains translated content
+      if (STATE.prefList) renderFilterOptions();
+      renderList();
+      if (STATE.openRest) openDetail(STATE.openRest);
     });
   });
 
@@ -202,18 +220,22 @@ function renderList() {
     list.innerHTML = `<div class="loading"><div>—</div></div>`;
     return;
   }
-  list.innerHTML = top.map(r => `
+  list.innerHTML = top.map(r => {
+    const prefTr = window.translatePref(r.p||'', STATE.lang);
+    const firstCat = (r.c||'').split('/')[0] || '';
+    const catTr = window.translateCat(firstCat, STATE.lang);
+    return `
     <div class="rest-card" data-url="${encodeURIComponent(r.u)}">
       <div class="rest-card-name">${escapeHtml(r.n)}</div>
       <div class="rest-card-meta">
-        <span>${escapeHtml(r.p||'')}</span>
+        <span>${escapeHtml(prefTr)}</span>
         <span>·</span>
-        <span>${escapeHtml((r.c||'').split('/')[0]||'')}</span>
+        <span>${escapeHtml(catTr)}</span>
         <span>·</span>
         <span class="rest-card-rating">★ ${escapeHtml(r.r||'')}</span>
-        ${r.dl ? `<span>·</span><span>夜¥${(r.dl/1000).toFixed(0)}k~</span>` : ''}
+        ${r.dl ? `<span>·</span><span>¥${(r.dl/1000).toFixed(0)}k~</span>` : ''}
       </div>
-    </div>`).join('');
+    </div>`;}).join('');
   list.querySelectorAll('.rest-card').forEach(card => {
     card.addEventListener('click', () => {
       const url = decodeURIComponent(card.dataset.url);
@@ -225,6 +247,7 @@ function renderList() {
 
 // ===== Detail drawer =====
 function openDetail(r) {
+  STATE.openRest = r;
   const drawer = document.getElementById('detail-drawer');
   const dict = window.I18N[STATE.lang];
 
@@ -251,7 +274,7 @@ function openDetail(r) {
     <div class="detail-name">${escapeHtml(r.n)}</div>
 
     <div class="detail-cat-row">
-      ${cats.map(c => `<span class="badge badge-cream">${escapeHtml(c)}</span>`).join('')}
+      ${cats.map(c => `<span class="badge badge-cream">${escapeHtml(window.translateCat(c, STATE.lang))}</span>`).join('')}
       ${r.w > 1 ? `<span class="badge badge-orange">${dict['detail-awards']} ${r.w} ${dict['detail-times']}</span>` : ''}
     </div>
 
