@@ -206,8 +206,18 @@ function applyFilters() {
       if (!rating || rating < f.minRating) return false;
     }
     if (f.maxPrice != null) {
-      if (r.dl == null) return false;
-      if (r.dl > f.maxPrice) return false;
+      // try dinner lower bound first
+      if (r.dl != null) {
+        if (r.dl > f.maxPrice) return false;
+      } else {
+        // no lower bound: try parsing upper bound from dinner/lunch text
+        // e.g. "～￥999" or "～¥1,999" → upper bound only
+        const ub = parseUpperBound(r.d) ?? parseUpperBound(r.l);
+        if (ub != null) {
+          if (ub > f.maxPrice) return false;
+        }
+        // if no price info at all, include (don't filter out unknowns)
+      }
     }
     if (f.q) {
       const hay = ((r.n||'') + ' ' + (r.a||'') + ' ' + (r.c||'')).toLowerCase();
@@ -411,6 +421,14 @@ function locateUser(recenter) {
     },
     { enableHighAccuracy: true, timeout: 10000 }
   );
+}
+
+// Parse "～￥999" / "~¥1,999" patterns → upper bound number, or null if no upper-only pattern
+function parseUpperBound(txt) {
+  if (!txt) return null;
+  const m = String(txt).match(/[～〜~]\s*[￥¥]?\s*([\d,]+)/);
+  if (!m) return null;
+  return parseInt(m[1].replace(/,/g, ''), 10);
 }
 
 // ===== Util =====
