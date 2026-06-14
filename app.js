@@ -40,12 +40,14 @@ function initMap() {
     STATE.cluster = L.markerClusterGroup({ chunkedLoading: true, maxClusterRadius: 50, spiderfyOnMaxZoom: true });
     STATE.map.addLayer(STATE.cluster);
   }
-  // re-render list whenever viewport moves/zooms (debounced)
+  // re-render list whenever viewport moves/zooms (debounced — longer for smoother zoom)
   let renderTo;
-  STATE.map.on('moveend zoomend', () => {
+  const reschedule = () => {
     clearTimeout(renderTo);
-    renderTo = setTimeout(() => renderList(), 150);
-  });
+    renderTo = setTimeout(() => renderList(), 350);
+  };
+  STATE.map.on('moveend', reschedule);
+  STATE.map.on('zoomend', reschedule);
 }
 
 function isInViewport(r) {
@@ -194,6 +196,24 @@ function setupListeners() {
   // locate
   document.getElementById('locate-btn').addEventListener('click', () => locateUser(false));
   document.getElementById('recenter-btn').addEventListener('click', () => locateUser(true));
+
+  // mobile filter sheet toggle
+  const sidebar = document.getElementById('sidebar');
+  const fab = document.getElementById('mobile-filter-fab');
+  const closeBtn = document.getElementById('sheet-close-mobile');
+  if (fab) fab.addEventListener('click', () => sidebar.classList.add('mobile-open'));
+  if (closeBtn) closeBtn.addEventListener('click', () => sidebar.classList.remove('mobile-open'));
+  // also auto-close after clicking a card on mobile
+  document.getElementById('result-list').addEventListener('click', (e) => {
+    if (window.matchMedia('(max-width: 767px)').matches && e.target.closest('.rest-card')) {
+      sidebar.classList.remove('mobile-open');
+    }
+  });
+}
+
+function isFilterActive() {
+  const f = STATE.filter;
+  return !!(f.q || f.pref || f.cat || (f.maxPrice != null) || f.minRating > 0);
 }
 
 function applyFilters() {
@@ -236,9 +256,13 @@ function renderList() {
   const list = document.getElementById('result-list');
   // viewport-scoped: only items currently visible on map
   const inView = STATE.filtered.filter(isInViewport);
-  // update stats to show viewport count vs total filtered
+  // update stats: shown only when filter active OR viewport is sub-sampling
   const total = STATE.filtered.length;
   const visible = inView.length;
+  const statsRow = document.getElementById('stats-row');
+  const filterActive = isFilterActive();
+  const viewportClipping = visible < total;
+  if (statsRow) statsRow.style.display = (filterActive || viewportClipping) ? '' : 'none';
   const statsEl = document.getElementById('stats-count');
   if (statsEl) {
     statsEl.textContent = visible === total

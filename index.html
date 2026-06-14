@@ -50,9 +50,16 @@
 
   <main class="layout">
     <!-- Sidebar with filters + list -->
-    <aside class="sidebar">
+    <aside class="sidebar" id="sidebar">
+      <!-- mobile sheet drag handle (hidden on desktop) -->
+      <div class="sheet-handle" id="sheet-handle" aria-hidden="true"><span></span></div>
       <section class="filter-panel">
-        <h2 class="eyebrow" data-i18n="filters">篩選</h2>
+        <div class="filter-header">
+          <h2 class="eyebrow" data-i18n="filters">篩選</h2>
+          <button class="sheet-close-mobile" id="sheet-close-mobile" aria-label="Close" title="">
+            <span class="msi">close</span>
+          </button>
+        </div>
 
         <div class="filter-group">
           <label class="filter-label" data-i18n="search-label">關鍵字</label>
@@ -96,11 +103,12 @@
           </div>
         </div>
 
-        <div class="filter-stats">
-          <span id="stats-count">0</span>
-          <span data-i18n="stats">家符合條件</span>
-        </div>
       </section>
+
+      <div class="stats-row" id="stats-row" style="display:none">
+        <span id="stats-count">0</span>
+        <span data-i18n="stats">家符合條件</span>
+      </div>
 
       <section class="result-list" id="result-list">
         <!-- restaurant cards injected here -->
@@ -112,6 +120,10 @@
       <div id="map"></div>
       <button class="recenter-btn" id="recenter-btn" aria-label="Recenter on me" title="回到我的位置">
         <span class="msi">my_location</span>
+      </button>
+      <!-- mobile-only filter toggle FAB -->
+      <button class="mobile-filter-fab" id="mobile-filter-fab" aria-label="Filters" title="">
+        <span class="msi">tune</span>
       </button>
     </section>
 
