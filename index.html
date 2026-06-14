@@ -1,0 +1,149 @@
+<!doctype html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>百名店 · Tabelog Hyakumeiten Atlas</title>
+  <meta name="description" content="Tabelog 過去 10 年百名店全國 12,280 家餐廳地圖 — 篩選、定位、評論" />
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;500&family=Inter:wght@400;500;600&family=Noto+Sans+JP:wght@400;500&display=swap" rel="stylesheet">
+
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+        integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+        integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+  <script defer src="https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js"></script>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.css" />
+  <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.Default.css" />
+
+  <link rel="stylesheet" href="./styles.css" />
+</head>
+<body>
+
+  <!-- Promo banner -->
+  <div class="promo-banner">
+    <span data-i18n="promo">Tabelog 過去10年 · 12,280家全國百名店 · 點地圖開始探索</span>
+  </div>
+
+  <!-- Top nav -->
+  <header class="top-nav">
+    <div class="brand">
+      <span class="brand-mark">百</span>
+      <span class="brand-word" data-i18n="brand">百名店 Atlas</span>
+    </div>
+
+    <nav class="nav-actions">
+      <button class="btn btn-secondary" id="locate-btn">
+        <span data-i18n="locate">使用我的位置</span>
+      </button>
+      <div class="lang-switcher">
+        <button class="lang-btn active" data-lang="zh">中</button>
+        <button class="lang-btn" data-lang="en">EN</button>
+        <button class="lang-btn" data-lang="ja">日</button>
+      </div>
+    </nav>
+  </header>
+
+  <main class="layout">
+    <!-- Sidebar with filters + list -->
+    <aside class="sidebar">
+      <section class="filter-panel">
+        <h2 class="eyebrow" data-i18n="filters">篩選</h2>
+
+        <div class="filter-group">
+          <label class="filter-label" data-i18n="search-label">關鍵字</label>
+          <input type="text" class="text-input" id="search-input" placeholder="店名 / 地址 / 分類…" data-i18n-ph="search-ph" />
+        </div>
+
+        <div class="filter-group">
+          <label class="filter-label" data-i18n="pref-label">都道府縣</label>
+          <select class="text-input" id="pref-select">
+            <option value="" data-i18n="all">全部</option>
+          </select>
+        </div>
+
+        <div class="filter-group">
+          <label class="filter-label" data-i18n="cat-label">分類</label>
+          <select class="text-input" id="cat-select">
+            <option value="" data-i18n="all">全部</option>
+          </select>
+        </div>
+
+        <div class="filter-group">
+          <label class="filter-label" data-i18n="price-label">夜予算上限</label>
+          <div class="pill-group" id="price-pills">
+            <button class="pill" data-price="">∞</button>
+            <button class="pill" data-price="1999">¥2k</button>
+            <button class="pill" data-price="2999">¥3k</button>
+            <button class="pill" data-price="3999">¥4k</button>
+            <button class="pill" data-price="5999">¥6k</button>
+            <button class="pill" data-price="9999">¥10k</button>
+          </div>
+        </div>
+
+        <div class="filter-group">
+          <label class="filter-label" data-i18n="rating-label">最低評分</label>
+          <div class="pill-group" id="rating-pills">
+            <button class="pill active" data-rating="0">∞</button>
+            <button class="pill" data-rating="3.5">3.5+</button>
+            <button class="pill" data-rating="3.7">3.7+</button>
+            <button class="pill" data-rating="3.9">3.9+</button>
+            <button class="pill" data-rating="4.0">4.0+</button>
+          </div>
+        </div>
+
+        <div class="filter-stats">
+          <span id="stats-count">0</span>
+          <span data-i18n="stats">家符合條件</span>
+        </div>
+      </section>
+
+      <section class="result-list" id="result-list">
+        <!-- restaurant cards injected here -->
+      </section>
+    </aside>
+
+    <!-- Map -->
+    <section class="map-section">
+      <div id="map"></div>
+    </section>
+  </main>
+
+  <!-- Restaurant detail drawer -->
+  <aside class="drawer" id="detail-drawer">
+    <button class="drawer-close" id="drawer-close" aria-label="Close">×</button>
+    <div class="drawer-content" id="drawer-content"></div>
+  </aside>
+
+  <!-- Sunset stripe brand band -->
+  <div class="sunset-stripe-band"></div>
+
+  <!-- Footer -->
+  <footer class="footer-region">
+    <div class="footer-grid">
+      <div>
+        <div class="brand-mark-large">百</div>
+        <p class="footer-tag" data-i18n="footer-tag">Tabelog Hyakumeiten Atlas · 2017–2026</p>
+      </div>
+      <div>
+        <h4 data-i18n="footer-data">資料</h4>
+        <p data-i18n="footer-source">資料來源: tabelog.com 百名店</p>
+        <p data-i18n="footer-count">收錄 12,280 家全國餐廳</p>
+      </div>
+      <div>
+        <h4 data-i18n="footer-tech">技術</h4>
+        <p>OpenStreetMap · Leaflet</p>
+        <p>Design: Mistral.ai inspired</p>
+      </div>
+    </div>
+    <div class="footer-bottom">
+      <p data-i18n="footer-disclaimer">非官方 Tabelog 工具，僅供查找參考。請以 Tabelog 官方為準。</p>
+    </div>
+  </footer>
+
+  <script src="./i18n.js"></script>
+  <script src="./app.js"></script>
+</body>
+</html>
