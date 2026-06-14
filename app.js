@@ -257,7 +257,7 @@ function renderList() {
     const prefTr = window.translatePref(r.p||'', STATE.lang);
     const firstCat = (r.c||'').split('/')[0] || '';
     const catTr = window.translateCat(firstCat, STATE.lang);
-    const thumb = r.cv || (r.ph && r.ph[0]) || '';
+    const thumb = r.cv || '';
     return `
     <div class="rest-card" data-url="${encodeURIComponent(r.u)}">
       ${thumb ? `<div class="rest-card-thumb"><img loading="lazy" src="${escapeHtml(thumb)}" alt=""/></div>` : `<div class="rest-card-thumb"></div>`}
