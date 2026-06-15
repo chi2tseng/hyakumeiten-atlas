@@ -671,18 +671,12 @@ function setupSheetGrip() {
 function setSheetState(s) {
   const sidebar = document.getElementById('sidebar');
   if (!sidebar) return;
+  sidebar.style.height = '';
+  sidebar.style.maxHeight = '';                                     // clear any drag inline; class governs
   sidebar.classList.remove('sheet-collapsed', 'mobile-open');
-  if (s === 'collapsed') sidebar.classList.add('sheet-collapsed');   // class still drives filter visibility
+  if (s === 'collapsed') sidebar.classList.add('sheet-collapsed');
   else if (s === 'full') sidebar.classList.add('mobile-open');
   sidebar.dataset.sheet = s;       // 'peek' has no class
-  // set the height explicitly (deterministic snap; inline beats the class rules)
-  if (window.matchMedia('(max-width: 767px)').matches) {
-    const vh = window.innerHeight;
-    const h = s === 'full' ? Math.round(vh * 0.86) : s === 'collapsed' ? 88 : Math.round(vh * 0.34);
-    sidebar.style.height = h + 'px';
-  } else {
-    sidebar.style.height = '';     // desktop = normal sidebar, no inline height
-  }
 }
 function setupMobileSheet() {
   const sidebar = document.getElementById('sidebar');
@@ -690,38 +684,31 @@ function setupMobileSheet() {
   if (!sidebar || !handle) return;
   const isMobile = () => window.matchMedia('(max-width: 767px)').matches;
   const cur = () => sidebar.dataset.sheet || 'peek';
-  setSheetState('peek');                                   // initial snap (sets inline height on mobile)
-  window.addEventListener('resize', () => setSheetState(cur())); // recompute on rotate / resize
-  const UP   = { collapsed: 'peek', peek: 'full', full: 'full' };       // drag up = expand
-  const DOWN = { full: 'peek', peek: 'collapsed', collapsed: 'collapsed' }; // drag down = shrink
+  sidebar.dataset.sheet = 'peek';
+  const UP   = { collapsed: 'peek', peek: 'full', full: 'full' };       // swipe up = expand
+  const DOWN = { full: 'peek', peek: 'collapsed', collapsed: 'collapsed' }; // swipe down = shrink
 
-  let startY = null, startH = 0, dragging = false, moved = false, pid = null;
+  // swipe-to-snap (class-driven height — no inline live-follow, so the snap is reliable)
+  let startY = null, dragging = false, moved = false, pid = null;
 
   handle.addEventListener('pointerdown', (e) => {
     if (!isMobile()) return;
     startY = e.clientY;
-    startH = sidebar.getBoundingClientRect().height;
     dragging = true; moved = false; pid = e.pointerId;
-    sidebar.classList.add('dragging');
     try { handle.setPointerCapture(pid); } catch (_) {}
   });
   handle.addEventListener('pointermove', (e) => {
     if (!dragging) return;
-    const dy = startY - e.clientY;                 // up = positive
-    if (Math.abs(dy) > 4) moved = true;
-    const h = Math.max(64, Math.min(window.innerHeight * 0.9, startH + dy));
-    sidebar.style.height = h + 'px';               // live-follow
+    if (Math.abs(startY - e.clientY) > 4) moved = true;
     e.preventDefault();
   });
   const end = (e) => {
     if (!dragging) return;
     dragging = false;
-    sidebar.classList.remove('dragging');           // re-enable the height transition
     const dy = startY - (e.clientY != null ? e.clientY : startY);
-    if (!moved) setSheetState(cur() === 'full' ? 'peek' : 'full');   // tap toggles
-    else if (dy > 30) setSheetState(UP[cur()]);     // dragged up → expand
-    else if (dy < -30) setSheetState(DOWN[cur()]);  // dragged down → shrink
-    else setSheetState(cur());                      // tiny move → snap back to current
+    if (!moved) setSheetState(cur() === 'full' ? 'peek' : 'full');   // tap toggles peek/full
+    else if (dy > 30) setSheetState(UP[cur()]);     // swiped up → expand
+    else if (dy < -30) setSheetState(DOWN[cur()]);  // swiped down → shrink
     try { handle.releasePointerCapture(pid); } catch (_) {}
     pid = null; startY = null;
   };
