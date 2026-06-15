@@ -1,12 +1,13 @@
-// Build data/restaurants.json for the app
-// Merges: japan_listings.json + japan_details.json + japan_coords.ndjson + japan_reviews.ndjson
-// Outputs compact JSON with short keys (n,p,a,c,y,w,d,l,dl,r,u,rv,lat,lng)
+// Build data/index.json (lightweight) + data/d/NN.json (detail shards) for the app
+// Merges: japan_listings.json + japan_details.json + japan_coords.ndjson + japan_reviews.ndjson + photos
+// index.json keeps n,p,a,c,y,w,d,l,dl,r,u,cv,lat,lng  (≈4MB, loads on startup)
+// d/NN.json keeps {<id>: {rv, ph}}  (heavy reviews+gallery, lazy-loaded by id last-2-digits)
 
 const fs = require('fs');
 const path = require('path');
 
 const SOURCE = 'D:/Tabelog';
-const OUT    = path.join(__dirname, 'data/restaurants.json');
+const OUT    = path.join(__dirname, 'data/index.json');
 
 if (!fs.existsSync(path.dirname(OUT))) fs.mkdirSync(path.dirname(OUT), { recursive: true });
 
@@ -100,7 +101,16 @@ function parsePriceLower(txt) {
   return nums[0];
 }
 
-const records = [];
+// trailing numeric segment of a Tabelog url = globally-unique restaurant id
+function tabelogId(url) {
+  const m = String(url || '').match(/\/(\d+)\/?$/);
+  return m ? m[1] : null;
+}
+
+const records = [];                 // lightweight index (no rv/ph)
+const shards = Array.from({ length: 100 }, () => ({})); // detail buckets by id last-2-digits
+let withCoords = 0, withReviews = 0, withPhotos = 0, noId = 0;
+
 for (const [url, listing] of Object.entries(listings)) {
   const d = details[url] || {};
   const categories = [...new Set((listing.awards || []).map(a => cleanCat(a.category)))];
@@ -121,34 +131,61 @@ for (const [url, listing] of Object.entries(listings)) {
     r: d.rating || '',
     u: url,
   };
-  if (co) { rec.lat = co[0]; rec.lng = co[1]; }
+  if (co) { rec.lat = co[0]; rec.lng = co[1]; withCoords++; }
+
+  // cover stays in the index (needed for card thumbnails + markers)
+  const ph = photos.get(url);
+  if (ph && ph.cover) rec.cv = ph.cover;
+
+  // heavy fields (reviews + full gallery) go to a lazy-loaded shard
+  const detail = {};
   if (rv && rv.length) {
-    // store as compact objects: {t: title, b: body (trim), r: rating, d: date}
-    rec.rv = rv.slice(0, 24).map(x => {
+    detail.rv = rv.slice(0, 24).map(x => {
       const obj = {};
-      if (x.title) obj.t = x.title.slice(0, 100);
-      if (x.body) obj.b = x.body.slice(0, 280);
+      if (x.title)  obj.t = x.title.slice(0, 100);
+      if (x.body)   obj.b = x.body.slice(0, 280);
       if (x.rating) obj.r = String(x.rating);
-      if (x.date) obj.d = x.date.slice(0, 24);
+      if (x.date)   obj.d = x.date.slice(0, 24);
       return obj;
     });
+    withReviews++;
   }
-  if (photos.has(url)) {
-    const ph = photos.get(url);
-    if (ph.cover) rec.cv = ph.cover;
-    if (ph.photos && ph.photos.length) rec.ph = ph.photos.slice(0, 24);
+  if (ph && ph.photos && ph.photos.length) {
+    detail.ph = ph.photos.slice(0, 24);
+    withPhotos++;
+  }
+
+  if (detail.rv || detail.ph) {
+    const id = tabelogId(url);
+    if (id) {
+      const b = parseInt(id.slice(-2), 10) % 100;
+      shards[b][id] = detail;
+    } else {
+      noId++;
+    }
   }
   records.push(rec);
 }
 
-// stats
-const withCoords = records.filter(r => r.lat).length;
-const withReviews = records.filter(r => r.rv && r.rv.length).length;
-console.log('Total records:', records.length);
-console.log('  with coords:', withCoords, `(${(withCoords/records.length*100).toFixed(1)}%)`);
-console.log('  with reviews:', withReviews, `(${(withReviews/records.length*100).toFixed(1)}%)`);
-
-// write compact JSON (no whitespace)
+// ---- write lightweight index ----
 fs.writeFileSync(OUT, JSON.stringify(records), 'utf-8');
-const stat = fs.statSync(OUT);
-console.log(`Written: ${OUT}  (${(stat.size/1024/1024).toFixed(1)} MB)`);
+const idxMb = (fs.statSync(OUT).size / 1024 / 1024).toFixed(2);
+
+// ---- write detail shards ----
+const SHARD_DIR = path.join(__dirname, 'data/d');
+if (!fs.existsSync(SHARD_DIR)) fs.mkdirSync(SHARD_DIR, { recursive: true });
+let shardBytes = 0;
+for (let i = 0; i < 100; i++) {
+  const name = String(i).padStart(2, '0') + '.json';
+  const body = JSON.stringify(shards[i]);
+  fs.writeFileSync(path.join(SHARD_DIR, name), body, 'utf-8');
+  shardBytes += Buffer.byteLength(body, 'utf8');
+}
+
+console.log('Total records:', records.length);
+console.log('  with coords :', withCoords,  `(${(withCoords/records.length*100).toFixed(1)}%)`);
+console.log('  with reviews:', withReviews, `(${(withReviews/records.length*100).toFixed(1)}%)`);
+console.log('  with photos :', withPhotos, `(${(withPhotos/records.length*100).toFixed(1)}%)`);
+if (noId) console.log('  ⚠ no id (detail dropped):', noId);
+console.log(`Index : ${OUT}  (${idxMb} MB)`);
+console.log(`Shards: 100 files in ${SHARD_DIR}  (${(shardBytes/1024/1024).toFixed(1)} MB total, ~${(shardBytes/100/1024).toFixed(0)} KB each)`);

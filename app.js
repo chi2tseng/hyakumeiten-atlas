@@ -88,7 +88,7 @@ async function loadData() {
   const list = document.getElementById('result-list');
   list.innerHTML = `<div class="loading"><div class="spinner"></div><div>${window.I18N[STATE.lang].loading}</div></div>`;
   try {
-    const res = await fetch('./data/restaurants.json');
+    const res = await fetch('./data/index.json');
     if (!res.ok) throw new Error(res.statusText);
     STATE.data = await res.json();
   } catch (err) {
@@ -310,17 +310,54 @@ function renderList() {
 }
 
 // ===== Detail drawer =====
+// ===== Detail drawer (lazy-loads reviews + gallery from a shard) =====
+const DETAIL_CACHE = new Map(); // "NN" -> parsed shard object
+
+function tabelogId(u) {
+  const m = String(u || '').match(/\/(\d+)\/?$/);
+  return m ? m[1] : null;
+}
+
+async function loadDetail(r) {
+  if (r._detailLoaded) return r;
+  const id = tabelogId(r.u);
+  if (!id) { r._detailLoaded = true; return r; }
+  const key = id.slice(-2).padStart(2, '0');
+  try {
+    let shard = DETAIL_CACHE.get(key);
+    if (!shard) {
+      const res = await fetch(`./data/d/${key}.json`);
+      shard = res.ok ? await res.json() : {};
+      DETAIL_CACHE.set(key, shard);
+    }
+    const d = shard[id];
+    if (d) { if (d.rv) r.rv = d.rv; if (d.ph) r.ph = d.ph; }
+  } catch (e) {
+    console.warn('detail load failed', id, e && e.message);
+  }
+  r._detailLoaded = true;
+  return r;
+}
+
 function openDetail(r) {
   STATE.openRest = r;
   const drawer = document.getElementById('detail-drawer');
-  const dict = window.I18N[STATE.lang];
-
   // pan to marker
   if (typeof r.lat === 'number' && typeof r.lng === 'number') {
     STATE.map.flyTo([r.lat, r.lng], Math.max(STATE.map.getZoom(), 14), { duration: 0.6 });
   }
+  renderDetail(r, !r._detailLoaded);
+  drawer.classList.add('open');
+  const dc = document.getElementById('drawer-content');
+  if (dc) dc.scrollTop = 0;
+  // lazy-fetch heavy detail (reviews + gallery) then re-render if still open
+  if (!r._detailLoaded) {
+    loadDetail(r).then(() => { if (STATE.openRest === r) renderDetail(r, false); });
+  }
+}
 
-  // build query for google maps & Tabelog
+function renderDetail(r, loading) {
+  const dict = window.I18N[STATE.lang];
   const mapsQuery = encodeURIComponent(`${r.n} ${r.a || r.p || ''}`);
   const gmaps = `https://www.google.com/maps/search/?api=1&query=${mapsQuery}`;
 
@@ -342,7 +379,9 @@ function openDetail(r) {
           ${body ? `<div class="review-body">${escapeHtml(body)}</div>` : ''}
         </div>`;
       }).join('')
-    : `<div class="review-body" style="color:var(--steel)">${dict['detail-no-reviews']}</div>`;
+    : loading
+      ? `<div class="detail-loading"><div class="spinner"></div></div>`
+      : `<div class="review-body" style="color:var(--steel)">${dict['detail-no-reviews']}</div>`;
 
   const cats = (r.c||'').split('/').filter(Boolean);
 
@@ -377,14 +416,14 @@ function openDetail(r) {
       </a>
     </div>
 
-    ${(r.cv || (r.ph && r.ph.length)) ? `
+    ${(r.cv || (r.ph && r.ph.length) || loading) ? `
       ${r.cv ? `<div class="photo-cover"><img loading="lazy" src="${escapeHtml(r.cv)}" alt=""/></div>` : ''}
       <div class="section-title"><span class="msi size-16">photo_library</span> ${dict['detail-photos']}${r.ph ? ` <span class="count">${r.ph.length}</span>` : ''}</div>
       ${r.ph && r.ph.length ? `
         <div class="photo-grid">
           ${r.ph.slice(0, 12).map(p => `<a class="photo-tile" href="${escapeHtml(p)}" target="_blank" rel="noopener"><img loading="lazy" src="${escapeHtml(p)}" alt=""/></a>`).join('')}
         </div>
-      ` : ''}
+      ` : (loading ? `<div class="detail-loading"><div class="spinner"></div></div>` : '')}
     ` : `
       <div class="section-title"><span class="msi size-16">photo_library</span> ${dict['detail-photos']}</div>
       <div class="photo-placeholder">
@@ -396,7 +435,6 @@ function openDetail(r) {
     <div class="section-title"><span class="msi size-16">reviews</span> ${dict['detail-reviews']}</div>
     ${reviewsHtml}
   `;
-  drawer.classList.add('open');
 }
 
 function closeDrawer() {

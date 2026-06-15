@@ -867,3 +867,10 @@ select.text-input { padding: 0 var(--md); }
   animation: spin 1s linear infinite;
 }
 @keyframes spin { to { transform: rotate(360deg); } }
+
+/* inline loading inside the detail drawer (while shard fetches) */
+.detail-loading {
+  display: flex; align-items: center; justify-content: center;
+  padding: 28px 0;
+}
+.detail-loading .spinner { width: 28px; height: 28px; border-width: 2.5px; }
