@@ -121,51 +121,90 @@ function parsePriceLower(txt) {
   return nums[0];
 }
 
-// trailing numeric segment of a Tabelog url = globally-unique restaurant id
+// canonical url = strip the /dtlrvwlst/ or /dtlphotolst/ suffix some listing links carry
+function canonUrl(url) {
+  return String(url || '').replace(/(dtlrvwlst|dtlphotolst)\/?$/, '');
+}
+// trailing numeric segment of the canonical url = Tabelog restaurant id
 function tabelogId(url) {
-  const m = String(url || '').match(/\/(\d+)\/?$/);
+  const m = canonUrl(url).match(/\/(\d+)\/?$/);
   return m ? m[1] : null;
+}
+
+// ---- DEDUPE -------------------------------------------------------------
+// The source listing holds the same restaurant under several url forms: the
+// real page, a wrong-prefecture mirror (e.g. /tokyo/… for a Hokkaido shop, with
+// a newline-polluted name), and a /dtlrvwlst/ review-list link. Group by the
+// restaurant id, keep the cleanest canonical url, and merge awards across every
+// variant.  ~12,280 urls → ~10,067 distinct restaurants.
+const groups = new Map(); // id -> [urls]
+let droppedNoId = 0;
+for (const url of Object.keys(listings)) {
+  const id = tabelogId(url);
+  if (!id) { droppedNoId++; continue; }
+  if (!groups.has(id)) groups.set(id, []);
+  groups.get(id).push(url);
+}
+function urlScore(u) {
+  let s = 0;
+  if (/dtlrvwlst|dtlphotolst/.test(u)) s += 1000;            // review/photo-list link — worst
+  if (!/\/[a-z]+\/A\d+\/A\d+\/\d+\/?$/.test(u)) s += 100;    // not a full 2-area-code canonical
+  if (!details[u]) s += 40;                                  // no detail scraped → likely the bad mirror
+  const nm = (listings[u] && listings[u].name) || '';
+  if (/[\n\r]/.test(nm)) s += 30;                            // polluted name (wrong-prefecture mirror)
+  if (nm.length > 45) s += 10;                               // review-title-ish name
+  return s + u.length * 0.001;                               // tiebreak: shorter
 }
 
 const records = [];                 // lightweight index (no rv/ph)
 const shards = Array.from({ length: 100 }, () => ({})); // detail buckets by id last-2-digits
-let withCoords = 0, withReviews = 0, withPhotos = 0, withReserve = 0, noId = 0;
+let withCoords = 0, withReviews = 0, withPhotos = 0, withReserve = 0;
 
-for (const [url, listing] of Object.entries(listings)) {
-  const d = details[url] || {};
-  const categories = [...new Set((listing.awards || []).map(a => cleanCat(a.category)))];
-  const years = [...new Set((listing.awards || []).map(a => a.year))].sort();
-  const dinnerLo = parsePriceLower(d.dinner);
-  const co = coords.get(url);
-  const rv = reviews.get(url);
+for (const [id, urls] of groups) {
+  const best = urls.slice().sort((a, b) => urlScore(a) - urlScore(b))[0];
+  const listing = listings[best];
+  // prefer data from `best`, else any sibling variant that has it
+  const pick = (map) => { for (const u of urls) { const v = map.get(u); if (v) return v; } return map.get(best) || null; };
+  const pickFirst = (map) => { const v = map.get(best); if (v) return v; for (const u of urls) { const x = map.get(u); if (x) return x; } return null; };
+  const d = details[best] || details[urls.find(u => details[u])] || {};
+
+  // merge awards from every variant (dedupe by category|year)
+  const awards = [];
+  const seenAward = new Set();
+  for (const u of urls) for (const a of (listings[u].awards || [])) {
+    const k = a.category + '|' + a.year;
+    if (!seenAward.has(k)) { seenAward.add(k); awards.push(a); }
+  }
+  const categories = [...new Set(awards.map(a => cleanCat(a.category)))];
+  const years = [...new Set(awards.map(a => a.year))].sort();
+
+  const co = pickFirst(coords);
+  const rv = pickFirst(reviews);
+  const ph = pickFirst(photos);
+  let rsvObj = null; for (const u of [best, ...urls]) { const v = reserve.get(u); if (v) { rsvObj = v; break; } }
+
   const rec = {
-    n: d.name || listing.name,
+    n: d.name || (listing.name || '').split(/[\n\r]/)[0].trim(),
     p: PREF_JP[listing.prefecture] || listing.prefecture,
     a: d.addr || '',
     c: categories.join('/'),
     y: years.join(','),
-    w: (listing.awards||[]).length,
+    w: awards.length,
     d: d.dinner || '',
     l: d.lunch || '',
-    dl: dinnerLo,
+    dl: parsePriceLower(d.dinner),
     r: d.rating || '',
-    u: url,
+    u: canonUrl(best),
   };
   if (co) { rec.lat = co[0]; rec.lng = co[1]; withCoords++; }
-
-  // cover stays in the index (needed for card thumbnails + markers)
-  const ph = photos.get(url);
   if (ph && ph.cover) rec.cv = ph.cover;
-
-  // reservation (small field, lives in the index for filtering)
-  const rsvObj = reserve.get(url);
   if (rsvObj) {
     if (rsvObj.rsv) rec.rsv = rsvObj.rsv;
     const rs = classifyReserve(rsvObj.rsv, rsvObj.net);
     if (rs) { rec.rs = rs; withReserve++; }
   }
 
-  // heavy fields (reviews + full gallery) go to a lazy-loaded shard
+  // heavy fields (reviews + full gallery) go to a lazy-loaded shard, keyed by id
   const detail = {};
   if (rv && rv.length) {
     detail.rv = rv.slice(0, 24).map(x => {
@@ -182,15 +221,8 @@ for (const [url, listing] of Object.entries(listings)) {
     detail.ph = ph.photos.slice(0, 24);
     withPhotos++;
   }
-
   if (detail.rv || detail.ph) {
-    const id = tabelogId(url);
-    if (id) {
-      const b = parseInt(id.slice(-2), 10) % 100;
-      shards[b][id] = detail;
-    } else {
-      noId++;
-    }
+    shards[parseInt(id.slice(-2), 10) % 100][id] = detail;
   }
   records.push(rec);
 }
@@ -210,11 +242,10 @@ for (let i = 0; i < 100; i++) {
   shardBytes += Buffer.byteLength(body, 'utf8');
 }
 
-console.log('Total records:', records.length);
+console.log('Source urls:', Object.keys(listings).length, '→ distinct restaurants:', records.length, `(deduped, dropped ${droppedNoId} no-id)`);
 console.log('  with coords :', withCoords,  `(${(withCoords/records.length*100).toFixed(1)}%)`);
 console.log('  with reviews:', withReviews, `(${(withReviews/records.length*100).toFixed(1)}%)`);
 console.log('  with photos :', withPhotos, `(${(withPhotos/records.length*100).toFixed(1)}%)`);
 console.log('  with reserve:', withReserve, `(${(withReserve/records.length*100).toFixed(1)}%)`);
-if (noId) console.log('  ⚠ no id (detail dropped):', noId);
 console.log(`Index : ${OUT}  (${idxMb} MB)`);
 console.log(`Shards: 100 files in ${SHARD_DIR}  (${(shardBytes/1024/1024).toFixed(1)} MB total, ~${(shardBytes/100/1024).toFixed(0)} KB each)`);

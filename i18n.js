@@ -102,7 +102,7 @@ window.translatePref = function(orig, lang) {
 window.I18N = {
   zh: {
     'back': '返回',
-    'promo': 'Tabelog 過去10年 · 12,280家全國百名店 · 點地圖開始探索',
+    'promo': 'Tabelog 過去10年 · 10,067家全國百名店 · 點地圖開始探索',
     'brand': '百名店 Atlas',
     'locate': '使用我的位置',
     'filters': '篩選',
@@ -122,7 +122,7 @@ window.I18N = {
     'footer-tag': 'Tabelog Hyakumeiten Atlas · 2017–2026',
     'footer-data': '資料',
     'footer-source': '資料來源: tabelog.com 百名店',
-    'footer-count': '收錄 12,280 家全國餐廳',
+    'footer-count': '收錄 10,067 家全國餐廳',
     'footer-tech': '技術',
     'footer-disclaimer': '非官方 Tabelog 工具,僅供查找參考。請以 Tabelog 官方為準。',
     'detail-address': '地址',
@@ -142,7 +142,7 @@ window.I18N = {
     'lang-name': '中文',
   },
   en: {
-    'promo': 'Tabelog Top-100 Selections · 12,280 restaurants nationwide · Click pins to explore',
+    'promo': 'Tabelog Top-100 Selections · 10,067 restaurants nationwide · Click pins to explore',
     'brand': 'Hyakumeiten Atlas',
     'locate': 'Use my location',
     'filters': 'Filters',
@@ -162,7 +162,7 @@ window.I18N = {
     'footer-tag': 'Tabelog Hyakumeiten Atlas · 2017–2026',
     'footer-data': 'Data',
     'footer-source': 'Source: tabelog.com Hyakumeiten',
-    'footer-count': '12,280 restaurants across Japan',
+    'footer-count': '10,067 restaurants across Japan',
     'footer-tech': 'Tech',
     'footer-disclaimer': 'Unofficial Tabelog tool — for discovery only. Refer to Tabelog for authoritative info.',
     'detail-address': 'Address',
@@ -184,7 +184,7 @@ window.I18N = {
   },
   ja: {
     'back': '戻る',
-    'promo': '食べログ百名店 過去10年 · 全国 12,280 軒 · ピンをクリックして探索',
+    'promo': '食べログ百名店 過去10年 · 全国 10,067 軒 · ピンをクリックして探索',
     'brand': '百名店アトラス',
     'locate': '現在地を使用',
     'filters': '絞り込み',
@@ -204,7 +204,7 @@ window.I18N = {
     'footer-tag': 'Tabelog Hyakumeiten Atlas · 2017–2026',
     'footer-data': 'データ',
     'footer-source': 'ソース: tabelog.com 百名店',
-    'footer-count': '全国 12,280 軒を収録',
+    'footer-count': '全国 10,067 軒を収録',
     'footer-tech': '技術',
     'footer-disclaimer': '非公式の食べログ用ツールです。情報の正確性は食べログ公式ページをご確認ください。',
     'detail-address': '住所',
