@@ -50,7 +50,7 @@
   --r-full: 9999px;
 
   --nav-h: 64px;
-  --promo-h: 36px;
+  --promo-h: 0px;
   --sidebar-w: 380px;
 }
 
@@ -448,16 +448,16 @@ select.text-input { padding: 0 var(--md); }
 /* recenter button — bottom-right of map section */
 .recenter-btn {
   position: absolute;
-  right: 16px;
-  bottom: 96px;
-  width: 44px;
-  height: 44px;
+  right: 24px;
+  bottom: 24px;
+  width: 48px;
+  height: 48px;
   border-radius: 50%;
   background: var(--canvas);
-  border: 1px solid var(--hairline);
+  border: 0;
   color: var(--steel);
-  box-shadow: rgba(0,0,0,0.16) 0 2px 6px;
-  display: none;
+  box-shadow: rgba(0,0,0,0.30) 0 1px 4px, rgba(0,0,0,0.15) 0 2px 8px;
+  display: inline-flex;
   align-items: center;
   justify-content: center;
   cursor: pointer;
@@ -465,9 +465,10 @@ select.text-input { padding: 0 var(--md); }
   transition: background 150ms ease, color 150ms ease, transform 200ms ease;
 }
 .recenter-btn.visible { display: inline-flex; }
-.recenter-btn:hover { background: var(--surface); color: var(--ink); }
+.recenter-btn:hover { background: #f1f3f4; }
 .recenter-btn:active { transform: scale(0.94); }
-.recenter-btn .msi { font-size: 22px; color: var(--primary); }
+.recenter-btn .msi { font-size: 24px; color: #5f6368; }       /* Google grey */
+.recenter-btn.located .msi { color: #1a73e8; }                 /* Google blue when centred on user */
 .recenter-btn.loading .msi {
   animation: spin 0.9s linear infinite;
 }
@@ -588,8 +589,9 @@ select.text-input { padding: 0 var(--md); }
 .info-row .label {
   color: var(--steel);
   flex-shrink: 0;
-  width: 64px;
+  width: 84px;
   font-size: 13px;
+  white-space: nowrap;
 }
 .info-row .value { color: var(--ink); flex: 1; word-break: break-word; }
 
@@ -615,6 +617,48 @@ select.text-input { padding: 0 var(--md); }
 .action-btn:hover { background: var(--cream-deeper); }
 .action-btn-primary { background: var(--primary); color: var(--on-primary); border-color: var(--primary); }
 .action-btn-primary:hover { background: var(--primary-deep); }
+
+/* brand favicon inside the action buttons (Tabelog / Google Maps) */
+.brand-ico { width: 16px; height: 16px; border-radius: 3px; flex-shrink: 0; display: inline-block; vertical-align: middle; }
+
+/* small copy buttons next to name + address */
+.detail-name-row { display: flex; align-items: flex-start; gap: 6px; padding-right: 40px; margin-bottom: var(--xs); }
+.detail-name-row .detail-name { padding-right: 0; margin-bottom: 0; flex: 1; min-width: 0; }
+.copy-btn {
+  flex-shrink: 0;
+  width: 26px; height: 26px;
+  border-radius: var(--r-sm);
+  background: transparent;
+  color: var(--stone);
+  display: inline-flex; align-items: center; justify-content: center;
+  cursor: pointer;
+  transition: background 120ms ease, color 120ms ease;
+}
+.copy-btn:hover { background: var(--surface); color: var(--ink); }
+.copy-btn .msi { font-size: 16px; }
+.copy-btn.copied { color: #1a9e4b; }
+.detail-name-row .copy-btn { margin-top: 8px; }
+.info-row .value { display: flex; align-items: flex-start; gap: 6px; }
+.info-row .value .copy-btn { width: 22px; height: 22px; }
+.info-row .value .copy-btn .msi { font-size: 14px; }
+
+/* category icon prefix (Material Symbols) — in badges + card meta */
+.cat-ico {
+  font-family: 'Material Symbols Rounded';
+  font-variation-settings: 'opsz' 20, 'wght' 500, 'FILL' 1, 'GRAD' 0;
+  font-size: 14px;
+  line-height: 1;
+  vertical-align: -2px;
+  margin-right: 3px;
+  -webkit-font-feature-settings: 'liga';
+  font-feature-settings: 'liga';
+}
+.rest-card-meta .cat-ico { color: var(--primary); }
+
+/* reservation badge */
+.badge-reserve-yes { background: #e7f5ec; color: #1a7e3c; }
+.badge-reserve-no  { background: #fbeaea; color: #b3261e; }
+.badge .cat-ico { margin-right: 2px; vertical-align: -2px; }
 
 .section-title {
   font-size: 11px;

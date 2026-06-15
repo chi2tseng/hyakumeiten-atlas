@@ -72,6 +72,24 @@ if (fs.existsSync(`${SOURCE}/japan_photos.ndjson`)) {
   }
 }
 
+// reservation availability (予約可否) raw text per restaurant
+const reserve = new Map();
+if (fs.existsSync(`${SOURCE}/japan_reserve.ndjson`)) {
+  for (const line of fs.readFileSync(`${SOURCE}/japan_reserve.ndjson`, 'utf-8').split('\n')) {
+    if (!line.trim()) continue;
+    try {
+      const r = JSON.parse(line);
+      if (r.url && r.rsv) reserve.set(r.url, r.rsv);
+    } catch {}
+  }
+}
+function normReserve(rsv) {
+  if (!rsv) return null;
+  if (rsv.includes('不可')) return 'no';
+  if (rsv.includes('可') || rsv.includes('予約制') || rsv.includes('優先')) return 'yes';
+  return null;
+}
+
 const PREF_JP = {
   tokyo:'東京', osaka:'大阪', aichi:'愛知', kanagawa:'神奈川', kyoto:'京都',
   hokkaido:'北海道', hyogo:'兵庫', fukuoka:'福岡', saitama:'埼玉', chiba:'千葉',
@@ -109,7 +127,7 @@ function tabelogId(url) {
 
 const records = [];                 // lightweight index (no rv/ph)
 const shards = Array.from({ length: 100 }, () => ({})); // detail buckets by id last-2-digits
-let withCoords = 0, withReviews = 0, withPhotos = 0, noId = 0;
+let withCoords = 0, withReviews = 0, withPhotos = 0, withReserve = 0, noId = 0;
 
 for (const [url, listing] of Object.entries(listings)) {
   const d = details[url] || {};
@@ -136,6 +154,10 @@ for (const [url, listing] of Object.entries(listings)) {
   // cover stays in the index (needed for card thumbnails + markers)
   const ph = photos.get(url);
   if (ph && ph.cover) rec.cv = ph.cover;
+
+  // reservation (small field, lives in the index for filtering)
+  const rsv = reserve.get(url);
+  if (rsv) { rec.rsv = rsv; const rs = normReserve(rsv); if (rs) rec.rs = rs; withReserve++; }
 
   // heavy fields (reviews + full gallery) go to a lazy-loaded shard
   const detail = {};
@@ -186,6 +208,7 @@ console.log('Total records:', records.length);
 console.log('  with coords :', withCoords,  `(${(withCoords/records.length*100).toFixed(1)}%)`);
 console.log('  with reviews:', withReviews, `(${(withReviews/records.length*100).toFixed(1)}%)`);
 console.log('  with photos :', withPhotos, `(${(withPhotos/records.length*100).toFixed(1)}%)`);
+console.log('  with reserve:', withReserve, `(${(withReserve/records.length*100).toFixed(1)}%)`);
 if (noId) console.log('  ⚠ no id (detail dropped):', noId);
 console.log(`Index : ${OUT}  (${idxMb} MB)`);
 console.log(`Shards: 100 files in ${SHARD_DIR}  (${(shardBytes/1024/1024).toFixed(1)} MB total, ~${(shardBytes/100/1024).toFixed(0)} KB each)`);

@@ -12,12 +12,106 @@ const STATE = {
     cat: '',
     maxPrice: null,
     minRating: 0,
+    reserve: '',
   },
   map: null,
   cluster: null,
   markers: new Map(), // url → marker
   userLocation: null,
 };
+
+// ===== Smooth wheel zoom (continuous, Google-Maps-like) — inlined plugin =====
+// Replaces Leaflet's stepped wheel zoom so scrolling glides to the target zoom.
+L.Map.mergeOptions({ smoothWheelZoom: true, smoothSensitivity: 1 });
+L.Map.SmoothWheelZoom = L.Handler.extend({
+  addHooks() { L.DomEvent.on(this._map._container, 'wheel', this._onWheelScroll, this); },
+  removeHooks() { L.DomEvent.off(this._map._container, 'wheel', this._onWheelScroll, this); },
+  _onWheelScroll(e) {
+    if (!this._isWheeling) this._onWheelStart(e);
+    this._onWheeling(e);
+  },
+  _onWheelStart(e) {
+    const map = this._map;
+    this._isWheeling = true;
+    this._wheelMousePosition = map.mouseEventToContainerPoint(e);
+    this._centerPoint = map.getSize()._divideBy(2);
+    this._startLatLng = map.containerPointToLatLng(this._centerPoint);
+    this._wheelStartLatLng = map.containerPointToLatLng(this._wheelMousePosition);
+    this._startZoom = map.getZoom();
+    this._moved = false;
+    this._zooming = true;
+    map._stop();
+    if (map._panAnim) map._panAnim.stop();
+    this._goalZoom = map.getZoom();
+    this._prevCenter = map.getCenter();
+    this._prevZoom = map.getZoom();
+    this._zoomAnimationId = requestAnimationFrame(this._updateWheelZoom.bind(this));
+  },
+  _onWheeling(e) {
+    const map = this._map;
+    this._goalZoom = this._goalZoom - e.deltaY * 0.003 * map.options.smoothSensitivity;
+    if (this._goalZoom < map.getMinZoom() || this._goalZoom > map.getMaxZoom()) {
+      this._goalZoom = map._limitZoom(this._goalZoom);
+    }
+    this._wheelMousePosition = map.mouseEventToContainerPoint(e);
+    clearTimeout(this._timeoutId);
+    this._timeoutId = setTimeout(this._onWheelEnd.bind(this), 200);
+    L.DomEvent.preventDefault(e);
+    L.DomEvent.stopPropagation(e);
+  },
+  _onWheelEnd() {
+    this._isWheeling = false;
+    cancelAnimationFrame(this._zoomAnimationId);
+    this._map._moveEnd(true);
+  },
+  _updateWheelZoom() {
+    const map = this._map;
+    if ((!map.getCenter().equals(this._prevCenter)) || map.getZoom() !== this._prevZoom) return;
+    this._zoom = map.getZoom() + (this._goalZoom - map.getZoom()) * 0.3;
+    this._zoom = Math.floor(this._zoom * 100) / 100;
+    const delta = this._wheelMousePosition.subtract(this._centerPoint);
+    if (delta.x === 0 && delta.y === 0) return;
+    const center = map.unproject(
+      map.project(this._wheelStartLatLng, this._zoom).subtract(delta), this._zoom);
+    map.setView(center, this._zoom, { animate: false });
+    this._prevCenter = map.getCenter();
+    this._prevZoom = map.getZoom();
+    this._zoomAnimationId = requestAnimationFrame(this._updateWheelZoom.bind(this));
+  },
+});
+L.Map.addInitHook('addHandler', 'smoothWheelZoom', L.Map.SmoothWheelZoom);
+
+// ===== Category → Material Symbol icon (Google icons, for quick scanning) =====
+const CATEGORY_ICONS = [
+  [/寿司|鮨|すし/, 'set_meal'],
+  [/ラーメン|拉麺|つけ麺|油そば/, 'ramen_dining'],
+  [/そば|蕎麦|うどん|麺/, 'ramen_dining'],
+  [/焼肉|ホルモン|ステーキ|鉄板/, 'outdoor_grill'],
+  [/焼鳥|串揚げ|串焼|串/, 'kebab_dining'],
+  [/天ぷら|天麩羅|とんかつ|フライ|揚/, 'lunch_dining'],
+  [/うなぎ|鰻|あなご|穴子/, 'set_meal'],
+  [/海鮮|魚|割烹|懐石|会席|日本料理|和食|京料理|料亭/, 'restaurant'],
+  [/カレー|スパイス/, 'rice_bowl'],
+  [/ハンバーガー|バーガー/, 'lunch_dining'],
+  [/ピザ|ピッツァ/, 'local_pizza'],
+  [/パスタ|イタリア|スパゲ/, 'dinner_dining'],
+  [/フレンチ|フランス|ビストロ|欧州|ヨーロッパ/, 'dinner_dining'],
+  [/中華|中国|餃子|点心|飲茶|四川|広東/, 'ramen_dining'],
+  [/韓国|焼酎|サムギョプサル/, 'outdoor_grill'],
+  [/カフェ|喫茶|珈琲|コーヒー/, 'local_cafe'],
+  [/パン|ベーカリー|サンド/, 'bakery_dining'],
+  [/ケーキ|洋菓子|和菓子|スイーツ|デザート|チョコ/, 'cake'],
+  [/アイス|ジェラート|かき氷/, 'icecream'],
+  [/バー|ワイン|居酒屋|酒場|ビア|ダイニングバー/, 'local_bar'],
+  [/定食|食堂|丼|お弁当|弁当/, 'rice_bowl'],
+  [/鍋|しゃぶ|すき焼|もつ鍋|水炊き/, 'soup_kitchen'],
+  [/お好み焼き|もんじゃ|たこ焼/, 'outdoor_grill'],
+];
+function categoryIcon(jpCat) {
+  if (!jpCat) return 'restaurant';
+  for (const [re, ic] of CATEGORY_ICONS) if (re.test(jpCat)) return ic;
+  return 'restaurant';
+}
 
 // ===== Init =====
 window.addEventListener('DOMContentLoaded', async () => {
@@ -34,13 +128,25 @@ window.addEventListener('DOMContentLoaded', async () => {
 
 // ===== Map =====
 function initMap() {
-  STATE.map = L.map('map', { zoomControl: true }).setView([36.5, 138], 6);
+  STATE.map = L.map('map', {
+    zoomControl: true,
+    scrollWheelZoom: false,   // replaced by the smooth handler below
+    smoothWheelZoom: true,
+    smoothSensitivity: 1.5,
+    zoomSnap: 0,              // allow fractional zoom for a gliding feel
+  }).setView([36.5, 138], 6);
   L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
     attribution: '© OpenStreetMap',
     maxZoom: 19,
   }).addTo(STATE.map);
   if (window.L && L.markerClusterGroup) {
-    STATE.cluster = L.markerClusterGroup({ chunkedLoading: true, maxClusterRadius: 50, spiderfyOnMaxZoom: true });
+    STATE.cluster = L.markerClusterGroup({
+      chunkedLoading: true,
+      maxClusterRadius: 50,
+      spiderfyOnMaxZoom: true,
+      animate: false,                  // don't re-animate clusters mid-zoom (smoother)
+      removeOutsideVisibleBounds: true,
+    });
     STATE.map.addLayer(STATE.cluster);
   }
   // re-render list whenever viewport moves/zooms (debounced — longer for smoother zoom)
@@ -51,6 +157,11 @@ function initMap() {
   };
   STATE.map.on('moveend', reschedule);
   STATE.map.on('zoomend', reschedule);
+  // recenter button reverts to grey once the user pans away from their location
+  STATE.map.on('dragstart', () => {
+    const rb = document.getElementById('recenter-btn');
+    if (rb) rb.classList.remove('located');
+  });
 }
 
 function isInViewport(r) {
@@ -113,6 +224,10 @@ function populateFilters() {
   const others = [...prefs].filter(p => !major.includes(p)).sort();
   STATE.prefList = [...major.filter(p => prefs.has(p)), ...others];
   STATE.catList = [...cats].sort();
+  // reveal the reservation filter only once enough records carry the field
+  const rsCount = STATE.data.reduce((n, r) => n + (r.rs ? 1 : 0), 0);
+  const rg = document.getElementById('reserve-group');
+  if (rg) rg.style.display = rsCount > 50 ? '' : 'none';
   renderFilterOptions();
 }
 
@@ -191,6 +306,24 @@ function setupListeners() {
       applyFilters();
     });
   });
+  // reservation pills
+  document.querySelectorAll('#reserve-pills .pill').forEach(p => {
+    p.addEventListener('click', () => {
+      document.querySelectorAll('#reserve-pills .pill').forEach(x => x.classList.remove('active'));
+      p.classList.add('active');
+      STATE.filter.reserve = p.dataset.reserve || '';
+      applyFilters();
+    });
+  });
+
+  // copy buttons inside the detail drawer (delegated — content re-renders)
+  const dcEl = document.getElementById('drawer-content');
+  if (dcEl) dcEl.addEventListener('click', (e) => {
+    const btn = e.target.closest('.copy-btn');
+    if (!btn) return;
+    e.preventDefault();
+    copyToClipboard(btn.getAttribute('data-copy') || '', btn);
+  });
 
   // drawer close
   document.getElementById('drawer-close').addEventListener('click', closeDrawer);
@@ -216,7 +349,7 @@ function setupListeners() {
 
 function isFilterActive() {
   const f = STATE.filter;
-  return !!(f.q || f.pref || f.cat || (f.maxPrice != null) || f.minRating > 0);
+  return !!(f.q || f.pref || f.cat || (f.maxPrice != null) || f.minRating > 0 || f.reserve);
 }
 
 function applyFilters() {
@@ -242,6 +375,8 @@ function applyFilters() {
         // if no price info at all, include (don't filter out unknowns)
       }
     }
+    if (f.reserve === 'yes' && r.rs !== 'yes') return false;
+    if (f.reserve === 'no' && r.rs !== 'no') return false;
     if (f.q) {
       const hay = ((r.n||'') + ' ' + (r.a||'') + ' ' + (r.c||'')).toLowerCase();
       if (!hay.includes(f.q)) return false;
@@ -293,10 +428,10 @@ function renderList() {
         <div class="rest-card-meta">
           <span>${escapeHtml(prefTr)}</span>
           <span>·</span>
-          <span>${escapeHtml(catTr)}</span>
+          <span><span class="cat-ico">${categoryIcon(firstCat)}</span>${escapeHtml(catTr)}</span>
           <span>·</span>
           <span class="rest-card-rating">★ ${escapeHtml(r.r||'')}</span>
-          ${r.dl ? `<span>·</span><span>¥${(r.dl/1000).toFixed(0)}k~</span>` : ''}
+          ${r.dl ? `<span>·</span><span>¥${r.dl.toLocaleString()}~</span>` : ''}
         </div>
       </div>
     </div>`;}).join('');
@@ -386,11 +521,16 @@ function renderDetail(r, loading) {
   const cats = (r.c||'').split('/').filter(Boolean);
 
   document.getElementById('drawer-content').innerHTML = `
-    <div class="detail-name">${escapeHtml(r.n)}</div>
+    <div class="detail-name-row">
+      <div class="detail-name">${escapeHtml(r.n)}</div>
+      <button class="copy-btn" data-copy="${escapeHtml(r.n)}" title="${dict['copy'] || '複製'}" aria-label="${dict['copy'] || '複製'}"><span class="msi">content_copy</span></button>
+    </div>
 
     <div class="detail-cat-row">
-      ${cats.map(c => `<span class="badge badge-cream">${escapeHtml(window.translateCat(c, STATE.lang))}</span>`).join('')}
+      ${cats.map(c => `<span class="badge badge-cream"><span class="cat-ico">${categoryIcon(c)}</span>${escapeHtml(window.translateCat(c, STATE.lang))}</span>`).join('')}
       ${r.w > 1 ? `<span class="badge badge-orange">${dict['detail-awards']} ${r.w} ${dict['detail-times']}</span>` : ''}
+      ${r.rs === 'yes' ? `<span class="badge badge-reserve-yes"><span class="cat-ico">event_available</span>${dict['reserve-yes']}</span>` : ''}
+      ${r.rs === 'no' ? `<span class="badge badge-reserve-no"><span class="cat-ico">event_busy</span>${dict['reserve-no']}</span>` : ''}
     </div>
 
     <div class="detail-meta-row">
@@ -399,7 +539,8 @@ function renderDetail(r, loading) {
     </div>
 
     <div class="info-rows">
-      ${r.a ? `<div class="info-row"><span class="label"><span class="msi size-16">place</span> ${dict['detail-address']}</span><span class="value">${escapeHtml(r.a)}</span></div>` : ''}
+      ${r.a ? `<div class="info-row"><span class="label"><span class="msi size-16">place</span> ${dict['detail-address']}</span><span class="value"><span>${escapeHtml(r.a)}</span><button class="copy-btn" data-copy="${escapeHtml(r.a)}" title="${dict['copy'] || '複製'}" aria-label="${dict['copy'] || '複製'}"><span class="msi">content_copy</span></button></span></div>` : ''}
+      ${r.rsv ? `<div class="info-row"><span class="label"><span class="msi size-16">${r.rs === 'no' ? 'event_busy' : 'event_available'}</span> ${dict['reserve-label']}</span><span class="value">${escapeHtml(translateReserve(r.rsv, STATE.lang))}</span></div>` : ''}
       ${r.d ? `<div class="info-row"><span class="label"><span class="msi size-16">restaurant</span> ${dict['detail-dinner']}</span><span class="value">${escapeHtml(r.d)}</span></div>` : ''}
       ${r.l ? `<div class="info-row"><span class="label"><span class="msi size-16">brunch_dining</span> ${dict['detail-lunch']}</span><span class="value">${escapeHtml(r.l)}</span></div>` : ''}
       ${r.y ? `<div class="info-row"><span class="label"><span class="msi size-16">emoji_events</span> ${dict['detail-awards']}</span><span class="value">${escapeHtml(r.y)}</span></div>` : ''}
@@ -407,11 +548,11 @@ function renderDetail(r, loading) {
 
     <div class="action-row">
       <a class="action-btn action-btn-primary" href="${gmaps}" target="_blank" rel="noopener">
-        <span class="msi size-16">map</span>
+        <img class="brand-ico" src="https://www.google.com/s2/favicons?domain=maps.google.com&sz=64" alt="" loading="lazy" />
         ${dict['detail-gmap']}
       </a>
       <a class="action-btn" href="${escapeHtml(r.u)}" target="_blank" rel="noopener">
-        <span class="msi size-16">open_in_new</span>
+        <img class="brand-ico" src="https://www.google.com/s2/favicons?domain=tabelog.com&sz=64" alt="" loading="lazy" />
         ${dict['detail-tabelog']}
       </a>
     </div>
@@ -457,8 +598,9 @@ function setUserMarker(lat, lng) {
     radius: 8, color: '#ffffff', fillColor: '#4285F4', fillOpacity: 1, weight: 3,
     className: 'user-dot',
   }).addTo(STATE.map);
-  // show recenter button
-  document.getElementById('recenter-btn').classList.add('visible');
+  // recenter button: visible + blue (centred on the user)
+  const rb = document.getElementById('recenter-btn');
+  rb.classList.add('visible', 'located');
 }
 
 function locateUser(recenter, silent) {
@@ -473,7 +615,7 @@ function locateUser(recenter, silent) {
   }
   if (recenter && STATE.userLocation) {
     STATE.map.flyTo([STATE.userLocation.lat, STATE.userLocation.lng], 14, { duration: 0.6 });
-    if (btn) { btn.classList.remove('loading'); btn.disabled = false; }
+    if (btn) { btn.classList.remove('loading'); btn.disabled = false; btn.classList.add('located'); }
     return;
   }
   navigator.geolocation.getCurrentPosition(
@@ -537,4 +679,46 @@ function parseUpperBound(txt) {
 // ===== Util =====
 function escapeHtml(s) {
   return String(s || '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+
+// translate Tabelog 予約可否 raw text per language
+function translateReserve(rsv, lang) {
+  if (!rsv) return '';
+  const exact = {
+    '予約可':       { zh: '可訂位',     en: 'Reservations OK',        ja: '予約可' },
+    '予約不可':     { zh: '不可訂位',   en: 'No reservations',        ja: '予約不可' },
+    '完全予約制':   { zh: '完全預約制', en: 'Reservation only',       ja: '完全予約制' },
+    '予約優先':     { zh: '預約優先',   en: 'Reservation preferred',  ja: '予約優先' },
+  };
+  if (exact[rsv]) return exact[rsv][lang] || rsv;
+  if (lang === 'ja') return rsv;
+  if (rsv.includes('不可'))        return lang === 'zh' ? '不可訂位'   : 'No reservations';
+  if (rsv.includes('完全予約'))    return lang === 'zh' ? '完全預約制' : 'Reservation only';
+  if (rsv.includes('優先'))        return lang === 'zh' ? '預約優先'   : 'Reservation preferred';
+  if (rsv.includes('可'))          return lang === 'zh' ? '可訂位'     : 'Reservations OK';
+  return rsv;
+}
+
+// copy text to clipboard with a brief check-mark confirmation on the button
+function copyToClipboard(text, btn) {
+  const flash = () => {
+    if (!btn) return;
+    btn.classList.add('copied');
+    const ic = btn.querySelector('.msi');
+    const prev = ic ? ic.textContent : '';
+    if (ic) ic.textContent = 'check';
+    setTimeout(() => { btn.classList.remove('copied'); if (ic) ic.textContent = prev || 'content_copy'; }, 1200);
+  };
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(text).then(flash).catch(() => fallbackCopy(text, flash));
+  } else {
+    fallbackCopy(text, flash);
+  }
+}
+function fallbackCopy(text, done) {
+  const ta = document.createElement('textarea');
+  ta.value = text; ta.style.position = 'fixed'; ta.style.opacity = '0';
+  document.body.appendChild(ta); ta.focus(); ta.select();
+  try { document.execCommand('copy'); done && done(); } catch (_) {}
+  document.body.removeChild(ta);
 }
