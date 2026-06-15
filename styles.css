@@ -189,6 +189,21 @@ input, select { font-family: inherit; font-size: 14px; }
   padding: var(--xl);
   border-bottom: 1px solid var(--hairline-soft);
   background: var(--surface);
+  max-height: 800px;
+  opacity: 1;
+  overflow: hidden;
+  transition: max-height 380ms cubic-bezier(.4,0,.2,1),
+              padding 380ms cubic-bezier(.4,0,.2,1),
+              opacity 220ms ease,
+              border-bottom-width 200ms ease;
+}
+.sidebar.sheet-up .filter-panel {
+  max-height: 0;
+  padding-top: 0;
+  padding-bottom: 0;
+  opacity: 0;
+  pointer-events: none;
+  border-bottom-width: 0;
 }
 .eyebrow {
   font-size: 11px;
@@ -272,6 +287,47 @@ select.text-input { padding: 0 var(--md); }
 }
 .sheet-close-mobile:hover { background: var(--surface); }
 .sheet-close-mobile .msi { font-size: 18px; }
+
+/* desktop sliding-sheet grip (hidden on mobile) */
+.sheet-grip {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  height: 26px;
+  background: var(--canvas);
+  border-bottom: 1px solid var(--hairline-soft);
+  cursor: pointer;
+  user-select: none;
+  touch-action: none;
+  transition: background 150ms ease, height 200ms ease;
+}
+.sheet-grip:hover { background: var(--cream-light); }
+.sheet-grip-bar {
+  width: 40px;
+  height: 4px;
+  border-radius: 2px;
+  background: var(--hairline-strong);
+  transition: background 150ms ease;
+}
+.sheet-grip:hover .sheet-grip-bar { background: var(--steel); }
+.sheet-grip-arrow {
+  position: absolute;
+  right: 16px;
+  font-size: 18px;
+  color: var(--steel);
+  transition: transform 380ms cubic-bezier(.4,0,.2,1);
+}
+.sidebar.sheet-up .sheet-grip {
+  background: var(--surface);
+  height: 30px;
+  border-top: 1px solid var(--hairline);
+  border-bottom: 1px solid var(--hairline);
+}
+.sidebar.sheet-up .sheet-grip-arrow {
+  transform: rotate(180deg);
+}
 
 /* mobile sheet drag handle (hidden on desktop) */
 .sheet-handle {
@@ -765,9 +821,12 @@ select.text-input { padding: 0 var(--md); }
   }
 
   .sheet-handle { display: flex; padding-top: 6px; }
+  .sheet-grip { display: none; }
   .sidebar:not(.mobile-open) .filter-panel,
   .sidebar:not(.mobile-open) .stats-row { display: none; }
   .sidebar:not(.mobile-open) .result-list { padding-top: 4px; max-height: 70px; overflow: hidden; }
+  /* on mobile, override desktop sheet-up state (only mobile-open governs sheet) */
+  .sidebar.sheet-up .filter-panel { max-height: 800px; opacity: 1; pointer-events: auto; padding: var(--xl); border-bottom-width: 1px; }
 
   .filter-header { margin-bottom: var(--sm); }
   .sheet-close-mobile { display: inline-flex; }

@@ -23,10 +23,13 @@ const STATE = {
 window.addEventListener('DOMContentLoaded', async () => {
   initMap();
   setupListeners();
+  setupSheetGrip();
   applyI18n(STATE.lang);
   await loadData();
   populateFilters();
   applyFilters();
+  // try silent auto-locate after data is ready (no alert on deny / unavailable)
+  setTimeout(() => locateUser(false, true), 500);
 });
 
 // ===== Map =====
@@ -420,20 +423,19 @@ function setUserMarker(lat, lng) {
   document.getElementById('recenter-btn').classList.add('visible');
 }
 
-function locateUser(recenter) {
+function locateUser(recenter, silent) {
   if (!navigator.geolocation) {
-    alert('Geolocation not supported in this browser');
+    if (!silent) alert('Geolocation not supported in this browser');
     return;
   }
   const btn = recenter ? document.getElementById('recenter-btn') : document.getElementById('locate-btn');
-  const original = btn.innerHTML;
-  btn.classList.add('loading');
-  btn.disabled = true;
-  // if already located + recenter just flies to known location
+  if (btn) {
+    btn.classList.add('loading');
+    btn.disabled = true;
+  }
   if (recenter && STATE.userLocation) {
     STATE.map.flyTo([STATE.userLocation.lat, STATE.userLocation.lng], 14, { duration: 0.6 });
-    btn.classList.remove('loading');
-    btn.disabled = false;
+    if (btn) { btn.classList.remove('loading'); btn.disabled = false; }
     return;
   }
   navigator.geolocation.getCurrentPosition(
@@ -441,17 +443,49 @@ function locateUser(recenter) {
       const { latitude, longitude } = pos.coords;
       setUserMarker(latitude, longitude);
       STATE.map.flyTo([latitude, longitude], 14, { duration: 0.6 });
-      btn.classList.remove('loading');
-      btn.disabled = false;
+      if (btn) { btn.classList.remove('loading'); btn.disabled = false; }
     },
     (err) => {
-      console.warn(err);
-      alert('無法取得位置 / Cannot get location: ' + err.message);
-      btn.classList.remove('loading');
-      btn.disabled = false;
+      console.warn('geolocation:', err && err.message);
+      if (!silent) alert('無法取得位置 / Cannot get location: ' + err.message);
+      if (btn) { btn.classList.remove('loading'); btn.disabled = false; }
     },
     { enableHighAccuracy: true, timeout: 10000 }
   );
+}
+
+// ===== Sheet grip — click or drag to cover/restore the filter panel =====
+function setupSheetGrip() {
+  const grip = document.getElementById('sheet-grip');
+  const sidebar = document.getElementById('sidebar');
+  if (!grip || !sidebar) return;
+
+  const toggle = () => sidebar.classList.toggle('sheet-up');
+
+  let startY = null;
+  let pointerId = null;
+
+  grip.addEventListener('pointerdown', (e) => {
+    if (window.matchMedia('(max-width: 767px)').matches) return; // mobile uses its own sheet
+    startY = e.clientY;
+    pointerId = e.pointerId;
+    try { grip.setPointerCapture(pointerId); } catch (_) {}
+  });
+  grip.addEventListener('pointerup', (e) => {
+    if (pointerId == null) { toggle(); return; }
+    const dy = e.clientY - startY;
+    if (Math.abs(dy) < 6) toggle();
+    else if (dy < -20) sidebar.classList.add('sheet-up');
+    else if (dy > 20) sidebar.classList.remove('sheet-up');
+    try { grip.releasePointerCapture(pointerId); } catch (_) {}
+    pointerId = null; startY = null;
+  });
+  grip.addEventListener('pointercancel', () => { pointerId = null; startY = null; });
+
+  // keyboard: Enter / Space toggles
+  grip.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggle(); }
+  });
 }
 
 // Parse "～￥999" / "~¥1,999" patterns → upper bound number, or null if no upper-only pattern
