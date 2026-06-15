@@ -495,14 +495,18 @@ function renderDetail(r, loading) {
   const mapsQuery = encodeURIComponent(`${r.n} ${r.a || r.p || ''}`);
   const gmaps = `https://www.google.com/maps/search/?api=1&query=${mapsQuery}`;
 
+  const lang = STATE.lang;
   const reviewsHtml = (r.rv && r.rv.length)
     ? r.rv.map(rv => {
-        // rv is either an object {t, b, r, d} OR legacy string "title｜body"
+        // rv is either an object {t,b,r,d (+ tz/bz zh, te/be en)} OR legacy string "title｜body"
         let title, body, rating, date;
         if (typeof rv === 'string') {
           [title, body] = rv.split('｜');
         } else {
-          ({ t: title, b: body, r: rating, d: date } = rv);
+          rating = rv.r; date = rv.d;
+          if (lang === 'zh')      { title = rv.tz || rv.t; body = rv.bz || rv.b; }
+          else if (lang === 'en') { title = rv.te || rv.t; body = rv.be || rv.b; }
+          else                    { title = rv.t;          body = rv.b; }   // ja = original
         }
         return `<div class="review-item">
           <div class="review-head">

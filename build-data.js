@@ -160,6 +160,17 @@ const records = [];                 // lightweight index (no rv/ph)
 const shards = Array.from({ length: 100 }, () => ({})); // detail buckets by id last-2-digits
 let withCoords = 0, withReviews = 0, withPhotos = 0, withReserve = 0;
 
+// carry-forward translations: review text is stable across rebuilds, so reuse any
+// tz/bz/te/be already written into the existing shards by translate-reviews.js.
+const oldShards = {};
+const TX_DIR = path.join(__dirname, 'data/d');
+for (let i = 0; i < 100; i++) {
+  const f = path.join(TX_DIR, String(i).padStart(2, '0') + '.json');
+  if (fs.existsSync(f)) { try { oldShards[i] = JSON.parse(fs.readFileSync(f, 'utf8')); } catch { oldShards[i] = {}; } }
+  else oldShards[i] = {};
+}
+let carried = 0;
+
 for (const [id, urls] of groups) {
   const best = urls.slice().sort((a, b) => urlScore(a) - urlScore(b))[0];
   const listing = listings[best];
@@ -207,12 +218,22 @@ for (const [id, urls] of groups) {
   // heavy fields (reviews + full gallery) go to a lazy-loaded shard, keyed by id
   const detail = {};
   if (rv && rv.length) {
-    detail.rv = rv.slice(0, 24).map(x => {
+    const oldRv = (oldShards[parseInt(id.slice(-2), 10) % 100][id] || {}).rv || [];
+    detail.rv = rv.slice(0, 24).map((x, k) => {
       const obj = {};
       if (x.title)  obj.t = x.title.slice(0, 100);
       if (x.body)   obj.b = x.body.slice(0, 280);
       if (x.rating) obj.r = String(x.rating);
       if (x.date)   obj.d = x.date.slice(0, 24);
+      // reuse existing translations when the source text still matches
+      const o = oldRv[k];
+      if (o && o.t === obj.t && o.b === obj.b && (o.bz != null || o.be != null)) {
+        if (o.tz != null) obj.tz = o.tz;
+        if (o.bz != null) obj.bz = o.bz;
+        if (o.te != null) obj.te = o.te;
+        if (o.be != null) obj.be = o.be;
+        carried++;
+      }
       return obj;
     });
     withReviews++;
