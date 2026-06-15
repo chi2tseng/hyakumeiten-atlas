@@ -118,6 +118,7 @@ window.addEventListener('DOMContentLoaded', async () => {
   initMap();
   setupListeners();
   setupSheetGrip();
+  setupMobileSheet();
   applyI18n(STATE.lang);
   await loadData();
   populateFilters();
@@ -333,16 +334,15 @@ function setupListeners() {
   document.getElementById('locate-btn').addEventListener('click', () => locateUser(false));
   document.getElementById('recenter-btn').addEventListener('click', () => locateUser(true));
 
-  // mobile filter sheet toggle
-  const sidebar = document.getElementById('sidebar');
+  // mobile bottom-sheet controls
   const fab = document.getElementById('mobile-filter-fab');
   const closeBtn = document.getElementById('sheet-close-mobile');
-  if (fab) fab.addEventListener('click', () => sidebar.classList.add('mobile-open'));
-  if (closeBtn) closeBtn.addEventListener('click', () => sidebar.classList.remove('mobile-open'));
-  // also auto-close after clicking a card on mobile
+  if (fab) fab.addEventListener('click', () => setSheetState('full'));   // open filters
+  if (closeBtn) closeBtn.addEventListener('click', () => setSheetState('peek'));
+  // tapping a card drops the sheet to peek so the map + pin are visible
   document.getElementById('result-list').addEventListener('click', (e) => {
     if (window.matchMedia('(max-width: 767px)').matches && e.target.closest('.rest-card')) {
-      sidebar.classList.remove('mobile-open');
+      setSheetState('peek');
     }
   });
 }
@@ -375,8 +375,7 @@ function applyFilters() {
         // if no price info at all, include (don't filter out unknowns)
       }
     }
-    if (f.reserve === 'yes' && r.rs !== 'yes') return false;
-    if (f.reserve === 'no' && r.rs !== 'no') return false;
+    if (f.reserve && r.rs !== f.reserve) return false;
     if (f.q) {
       const hay = ((r.n||'') + ' ' + (r.a||'') + ' ' + (r.c||'')).toLowerCase();
       if (!hay.includes(f.q)) return false;
@@ -529,8 +528,7 @@ function renderDetail(r, loading) {
     <div class="detail-cat-row">
       ${cats.map(c => `<span class="badge badge-cream"><span class="cat-ico">${categoryIcon(c)}</span>${escapeHtml(window.translateCat(c, STATE.lang))}</span>`).join('')}
       ${r.w > 1 ? `<span class="badge badge-orange">${dict['detail-awards']} ${r.w} ${dict['detail-times']}</span>` : ''}
-      ${r.rs === 'yes' ? `<span class="badge badge-reserve-yes"><span class="cat-ico">event_available</span>${dict['reserve-yes']}</span>` : ''}
-      ${r.rs === 'no' ? `<span class="badge badge-reserve-no"><span class="cat-ico">event_busy</span>${dict['reserve-no']}</span>` : ''}
+      ${r.rs ? `<span class="badge badge-reserve-${r.rs}"><span class="cat-ico">${reserveIcon(r.rs)}</span>${reserveLabel(r.rs, STATE.lang)}</span>` : ''}
     </div>
 
     <div class="detail-meta-row">
@@ -540,7 +538,7 @@ function renderDetail(r, loading) {
 
     <div class="info-rows">
       ${r.a ? `<div class="info-row"><span class="label"><span class="msi size-16">place</span> ${dict['detail-address']}</span><span class="value"><span>${escapeHtml(r.a)}</span><button class="copy-btn" data-copy="${escapeHtml(r.a)}" title="${dict['copy'] || '複製'}" aria-label="${dict['copy'] || '複製'}"><span class="msi">content_copy</span></button></span></div>` : ''}
-      ${r.rsv ? `<div class="info-row"><span class="label"><span class="msi size-16">${r.rs === 'no' ? 'event_busy' : 'event_available'}</span> ${dict['reserve-label']}</span><span class="value">${escapeHtml(translateReserve(r.rsv, STATE.lang))}</span></div>` : ''}
+      ${r.rs ? `<div class="info-row"><span class="label"><span class="msi size-16">${reserveIcon(r.rs)}</span> ${dict['reserve-label']}</span><span class="value">${escapeHtml(reserveLabel(r.rs, STATE.lang))}</span></div>` : ''}
       ${r.d ? `<div class="info-row"><span class="label"><span class="msi size-16">restaurant</span> ${dict['detail-dinner']}</span><span class="value">${escapeHtml(r.d)}</span></div>` : ''}
       ${r.l ? `<div class="info-row"><span class="label"><span class="msi size-16">brunch_dining</span> ${dict['detail-lunch']}</span><span class="value">${escapeHtml(r.l)}</span></div>` : ''}
       ${r.y ? `<div class="info-row"><span class="label"><span class="msi size-16">emoji_events</span> ${dict['detail-awards']}</span><span class="value">${escapeHtml(r.y)}</span></div>` : ''}
@@ -668,6 +666,69 @@ function setupSheetGrip() {
   });
 }
 
+// ===== Mobile bottom sheet — 3 snap heights, draggable handle =====
+// states: 'collapsed' (88px) · 'peek' (34vh, default) · 'full' (86vh)
+function setSheetState(s) {
+  const sidebar = document.getElementById('sidebar');
+  if (!sidebar) return;
+  sidebar.classList.remove('sheet-collapsed', 'mobile-open');
+  if (s === 'collapsed') sidebar.classList.add('sheet-collapsed');   // class still drives filter visibility
+  else if (s === 'full') sidebar.classList.add('mobile-open');
+  sidebar.dataset.sheet = s;       // 'peek' has no class
+  // set the height explicitly (deterministic snap; inline beats the class rules)
+  if (window.matchMedia('(max-width: 767px)').matches) {
+    const vh = window.innerHeight;
+    const h = s === 'full' ? Math.round(vh * 0.86) : s === 'collapsed' ? 88 : Math.round(vh * 0.34);
+    sidebar.style.height = h + 'px';
+  } else {
+    sidebar.style.height = '';     // desktop = normal sidebar, no inline height
+  }
+}
+function setupMobileSheet() {
+  const sidebar = document.getElementById('sidebar');
+  const handle = document.getElementById('sheet-handle');
+  if (!sidebar || !handle) return;
+  const isMobile = () => window.matchMedia('(max-width: 767px)').matches;
+  const cur = () => sidebar.dataset.sheet || 'peek';
+  setSheetState('peek');                                   // initial snap (sets inline height on mobile)
+  window.addEventListener('resize', () => setSheetState(cur())); // recompute on rotate / resize
+  const UP   = { collapsed: 'peek', peek: 'full', full: 'full' };       // drag up = expand
+  const DOWN = { full: 'peek', peek: 'collapsed', collapsed: 'collapsed' }; // drag down = shrink
+
+  let startY = null, startH = 0, dragging = false, moved = false, pid = null;
+
+  handle.addEventListener('pointerdown', (e) => {
+    if (!isMobile()) return;
+    startY = e.clientY;
+    startH = sidebar.getBoundingClientRect().height;
+    dragging = true; moved = false; pid = e.pointerId;
+    sidebar.classList.add('dragging');
+    try { handle.setPointerCapture(pid); } catch (_) {}
+  });
+  handle.addEventListener('pointermove', (e) => {
+    if (!dragging) return;
+    const dy = startY - e.clientY;                 // up = positive
+    if (Math.abs(dy) > 4) moved = true;
+    const h = Math.max(64, Math.min(window.innerHeight * 0.9, startH + dy));
+    sidebar.style.height = h + 'px';               // live-follow
+    e.preventDefault();
+  });
+  const end = (e) => {
+    if (!dragging) return;
+    dragging = false;
+    sidebar.classList.remove('dragging');           // re-enable the height transition
+    const dy = startY - (e.clientY != null ? e.clientY : startY);
+    if (!moved) setSheetState(cur() === 'full' ? 'peek' : 'full');   // tap toggles
+    else if (dy > 30) setSheetState(UP[cur()]);     // dragged up → expand
+    else if (dy < -30) setSheetState(DOWN[cur()]);  // dragged down → shrink
+    else setSheetState(cur());                      // tiny move → snap back to current
+    try { handle.releasePointerCapture(pid); } catch (_) {}
+    pid = null; startY = null;
+  };
+  handle.addEventListener('pointerup', end);
+  handle.addEventListener('pointercancel', end);
+}
+
 // Parse "～￥999" / "~¥1,999" patterns → upper bound number, or null if no upper-only pattern
 function parseUpperBound(txt) {
   if (!txt) return null;
@@ -681,22 +742,19 @@ function escapeHtml(s) {
   return String(s || '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 }
 
-// translate Tabelog 予約可否 raw text per language
-function translateReserve(rsv, lang) {
-  if (!rsv) return '';
-  const exact = {
-    '予約可':       { zh: '可訂位',     en: 'Reservations OK',        ja: '予約可' },
-    '予約不可':     { zh: '不可訂位',   en: 'No reservations',        ja: '予約不可' },
-    '完全予約制':   { zh: '完全預約制', en: 'Reservation only',       ja: '完全予約制' },
-    '予約優先':     { zh: '預約優先',   en: 'Reservation preferred',  ja: '予約優先' },
-  };
-  if (exact[rsv]) return exact[rsv][lang] || rsv;
-  if (lang === 'ja') return rsv;
-  if (rsv.includes('不可'))        return lang === 'zh' ? '不可訂位'   : 'No reservations';
-  if (rsv.includes('完全予約'))    return lang === 'zh' ? '完全預約制' : 'Reservation only';
-  if (rsv.includes('優先'))        return lang === 'zh' ? '預約優先'   : 'Reservation preferred';
-  if (rsv.includes('可'))          return lang === 'zh' ? '可訂位'     : 'Reservations OK';
-  return rsv;
+// reservation class → localized label + icon
+function reserveLabel(rs, lang) {
+  const d = window.I18N[lang] || window.I18N.zh;
+  if (rs === 'net')   return d['reserve-net'];
+  if (rs === 'phone') return d['reserve-phone'];
+  if (rs === 'no')    return d['reserve-no'];
+  return '';
+}
+function reserveIcon(rs) {
+  if (rs === 'net')   return 'event_available';
+  if (rs === 'phone') return 'call';
+  if (rs === 'no')    return 'event_busy';
+  return 'event_available';
 }
 
 // copy text to clipboard with a brief check-mark confirmation on the button

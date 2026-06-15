@@ -72,21 +72,23 @@ if (fs.existsSync(`${SOURCE}/japan_photos.ndjson`)) {
   }
 }
 
-// reservation availability (予約可否) raw text per restaurant
-const reserve = new Map();
+// reservation: 予約可否 text + net (online instant-booking) flag per restaurant
+const reserve = new Map(); // url -> { rsv, net }
 if (fs.existsSync(`${SOURCE}/japan_reserve.ndjson`)) {
   for (const line of fs.readFileSync(`${SOURCE}/japan_reserve.ndjson`, 'utf-8').split('\n')) {
     if (!line.trim()) continue;
     try {
       const r = JSON.parse(line);
-      if (r.url && r.rsv) reserve.set(r.url, r.rsv);
+      if (r.url && (('net' in r) || r.rsv)) reserve.set(r.url, { rsv: r.rsv || '', net: r.net ? 1 : 0 });
     } catch {}
   }
 }
-function normReserve(rsv) {
+// classify into: 'net' (online booking) > 'phone' (reservable, phone only) > 'no' (not reservable)
+function classifyReserve(rsv, net) {
+  if (net) return 'net';
   if (!rsv) return null;
   if (rsv.includes('不可')) return 'no';
-  if (rsv.includes('可') || rsv.includes('予約制') || rsv.includes('優先')) return 'yes';
+  if (rsv.includes('可') || rsv.includes('予約制') || rsv.includes('優先')) return 'phone';
   return null;
 }
 
@@ -156,8 +158,12 @@ for (const [url, listing] of Object.entries(listings)) {
   if (ph && ph.cover) rec.cv = ph.cover;
 
   // reservation (small field, lives in the index for filtering)
-  const rsv = reserve.get(url);
-  if (rsv) { rec.rsv = rsv; const rs = normReserve(rsv); if (rs) rec.rs = rs; withReserve++; }
+  const rsvObj = reserve.get(url);
+  if (rsvObj) {
+    if (rsvObj.rsv) rec.rsv = rsvObj.rsv;
+    const rs = classifyReserve(rsvObj.rsv, rsvObj.net);
+    if (rs) { rec.rs = rs; withReserve++; }
+  }
 
   // heavy fields (reviews + full gallery) go to a lazy-loaded shard
   const detail = {};

@@ -656,8 +656,9 @@ select.text-input { padding: 0 var(--md); }
 .rest-card-meta .cat-ico { color: var(--primary); }
 
 /* reservation badge */
-.badge-reserve-yes { background: #e7f5ec; color: #1a7e3c; }
-.badge-reserve-no  { background: #fbeaea; color: #b3261e; }
+.badge-reserve-net   { background: #e3f0fd; color: #1558b0; }  /* online booking — blue */
+.badge-reserve-phone { background: #fff1dd; color: #9a5b00; }  /* phone only — amber */
+.badge-reserve-no    { background: #fbeaea; color: #b3261e; }  /* not reservable — red */
 .badge .cat-ico { margin-right: 2px; vertical-align: -2px; }
 
 .section-title {
@@ -841,36 +842,50 @@ select.text-input { padding: 0 var(--md); }
   /* Map fills the viewport behind everything */
   .map-section { position: relative; z-index: 1; }
 
-  /* Sidebar becomes bottom sheet — collapsed by default, peeks 96px from bottom */
+  /* Sidebar = draggable bottom sheet. 3 snap heights: collapsed / peek / full */
   .sidebar {
     position: fixed;
     bottom: 0;
     left: 0;
     right: 0;
-    height: 96px;
-    max-height: 96px;
+    height: 34vh;                 /* peek (default) — shows several cards, scrollable */
     background: var(--canvas);
     border-right: 0;
     border-top: 1px solid var(--hairline);
     border-radius: var(--r-lg) var(--r-lg) 0 0;
     box-shadow: rgba(0,0,0,0.12) 0 -4px 16px;
     z-index: 100;
-    transition: max-height 300ms cubic-bezier(0.22, 1, 0.36, 1);
+    display: flex;
+    flex-direction: column;
+    transition: height 320ms cubic-bezier(0.22, 1, 0.36, 1);
     overflow: hidden;
   }
-  .sidebar.mobile-open {
-    max-height: 75vh;
-    height: 75vh;
-    overflow-y: auto;
-  }
+  .sidebar.sheet-collapsed { height: 88px; }   /* peeked down to just the handle + 1 row */
+  .sidebar.mobile-open { height: 86vh; }        /* full */
+  .sidebar.dragging { transition: none; }       /* live-follow the finger */
 
-  .sheet-handle { display: flex; padding-top: 6px; }
+  /* big, obvious grab handle — generous touch target */
+  .sheet-handle {
+    display: flex;
+    flex-shrink: 0;
+    align-items: center;
+    justify-content: center;
+    min-height: 40px;
+    padding: 14px 0 12px;
+    touch-action: none;
+    cursor: grab;
+  }
+  .sheet-handle:active { cursor: grabbing; }
+  .sheet-handle span { width: 48px; height: 5px; border-radius: 3px; background: var(--hairline-strong); }
   .sheet-grip { display: none; }
+
+  /* filters appear only in the full state (otherwise the FAB opens them) */
   .sidebar:not(.mobile-open) .filter-panel,
   .sidebar:not(.mobile-open) .stats-row { display: none; }
-  .sidebar:not(.mobile-open) .result-list { padding-top: 4px; max-height: 70px; overflow: hidden; }
-  /* on mobile, override desktop sheet-up state (only mobile-open governs sheet) */
   .sidebar.sheet-up .filter-panel { max-height: 800px; opacity: 1; pointer-events: auto; padding: var(--xl); border-bottom-width: 1px; }
+
+  /* list always scrolls within whatever height the sheet currently has */
+  .result-list { flex: 1 1 auto; overflow-y: auto; -webkit-overflow-scrolling: touch; }
 
   .filter-header { margin-bottom: var(--sm); }
   .sheet-close-mobile { display: inline-flex; }
