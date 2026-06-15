@@ -339,10 +339,10 @@ function setupListeners() {
   const closeBtn = document.getElementById('sheet-close-mobile');
   if (fab) fab.addEventListener('click', () => setSheetState('full'));   // open filters
   if (closeBtn) closeBtn.addEventListener('click', () => setSheetState('peek'));
-  // tapping a card drops the sheet to peek so the map + pin are visible
+  // tapping a card collapses the sheet to its minimum so the detail + map show
   document.getElementById('result-list').addEventListener('click', (e) => {
     if (window.matchMedia('(max-width: 767px)').matches && e.target.closest('.rest-card')) {
-      setSheetState('peek');
+      setSheetState('collapsed');
     }
   });
 }
@@ -668,15 +668,20 @@ function setupSheetGrip() {
 
 // ===== Mobile bottom sheet — 3 snap heights, draggable handle =====
 // states: 'collapsed' (88px) · 'peek' (34vh, default) · 'full' (86vh)
+function sheetHeights() {
+  const vh = window.innerHeight;
+  return { collapsed: 88, peek: Math.round(vh * 0.34), full: Math.round(vh * 0.86) };
+}
 function setSheetState(s) {
   const sidebar = document.getElementById('sidebar');
   if (!sidebar) return;
   sidebar.style.height = '';
-  sidebar.style.maxHeight = '';                                     // clear any drag inline; class governs
+  sidebar.style.maxHeight = '';                                     // clear drag inline; class governs height
   sidebar.classList.remove('sheet-collapsed', 'mobile-open');
   if (s === 'collapsed') sidebar.classList.add('sheet-collapsed');
   else if (s === 'full') sidebar.classList.add('mobile-open');
   sidebar.dataset.sheet = s;       // 'peek' has no class
+  // FAB + recenter fade is handled purely by the .sidebar.mobile-open ~ … CSS rule
 }
 function setupMobileSheet() {
   const sidebar = document.getElementById('sidebar');
@@ -685,30 +690,40 @@ function setupMobileSheet() {
   const isMobile = () => window.matchMedia('(max-width: 767px)').matches;
   const cur = () => sidebar.dataset.sheet || 'peek';
   sidebar.dataset.sheet = 'peek';
-  const UP   = { collapsed: 'peek', peek: 'full', full: 'full' };       // swipe up = expand
+  const UP   = { collapsed: 'peek', peek: 'full', full: 'full' };           // swipe up = expand
   const DOWN = { full: 'peek', peek: 'collapsed', collapsed: 'collapsed' }; // swipe down = shrink
 
-  // swipe-to-snap (class-driven height — no inline live-follow, so the snap is reliable)
-  let startY = null, dragging = false, moved = false, pid = null;
+  let startY = null, startH = 0, dragging = false, moved = false, pid = null;
 
   handle.addEventListener('pointerdown', (e) => {
     if (!isMobile()) return;
     startY = e.clientY;
+    startH = sidebar.getBoundingClientRect().height;
     dragging = true; moved = false; pid = e.pointerId;
+    sidebar.classList.add('dragging');                 // transition off → follow finger
     try { handle.setPointerCapture(pid); } catch (_) {}
   });
   handle.addEventListener('pointermove', (e) => {
     if (!dragging) return;
-    if (Math.abs(startY - e.clientY) > 4) moved = true;
+    const dy = startY - e.clientY;                     // up = positive
+    if (Math.abs(dy) > 4) moved = true;
+    const H = sheetHeights();
+    const h = Math.max(H.collapsed, Math.min(H.full, startH + dy));
+    sidebar.style.height = h + 'px';                   // live-follow (both, since max-height is the cap)
+    sidebar.style.maxHeight = h + 'px';
     e.preventDefault();
   });
   const end = (e) => {
     if (!dragging) return;
     dragging = false;
+    sidebar.classList.remove('dragging');              // re-enable transition for the snap
     const dy = startY - (e.clientY != null ? e.clientY : startY);
-    if (!moved) setSheetState(cur() === 'full' ? 'peek' : 'full');   // tap toggles peek/full
-    else if (dy > 30) setSheetState(UP[cur()]);     // swiped up → expand
-    else if (dy < -30) setSheetState(DOWN[cur()]);  // swiped down → shrink
+    let target;
+    if (!moved) target = cur() === 'full' ? 'peek' : 'full';   // tap toggles
+    else if (dy > 30) target = UP[cur()];              // swiped up → expand
+    else if (dy < -30) target = DOWN[cur()];           // swiped down → shrink
+    else target = cur();                               // tiny move → settle current
+    setSheetState(target);                             // clears inline + animates to class height
     try { handle.releasePointerCapture(pid); } catch (_) {}
     pid = null; startY = null;
   };

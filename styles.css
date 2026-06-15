@@ -365,6 +365,7 @@ select.text-input { padding: 0 var(--md); }
 }
 .mobile-filter-fab:active { transform: scale(0.92); }
 .mobile-filter-fab .msi { font-size: 24px; }
+.mobile-filter-fab, .recenter-btn { transition: transform 200ms ease, opacity 220ms ease; }
 
 /* ===== Result list ===== */
 .result-list {
@@ -864,6 +865,7 @@ select.text-input { padding: 0 var(--md); }
   }
   .sidebar.sheet-collapsed { height: 88px; max-height: 88px; }    /* just handle + 1 row */
   .sidebar.mobile-open { height: 86vh; max-height: 86vh; }         /* full */
+  .sidebar.dragging { transition: none; }                          /* follow the finger live */
 
   /* big, obvious grab handle — generous touch target */
   .sheet-handle {
@@ -885,8 +887,16 @@ select.text-input { padding: 0 var(--md); }
   .sidebar:not(.mobile-open) .stats-row { display: none; }
   .sidebar.sheet-up .filter-panel { max-height: 800px; opacity: 1; pointer-events: auto; padding: var(--xl); border-bottom-width: 1px; }
 
-  /* list always scrolls within whatever height the sheet currently has */
-  .result-list { flex: 1 1 auto; overflow-y: auto; -webkit-overflow-scrolling: touch; }
+  /* list always scrolls within whatever height the sheet currently has.
+     min-height:0 is REQUIRED so the flex child can shrink and become scrollable. */
+  .result-list {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+    touch-action: pan-y;
+    overscroll-behavior: contain;
+  }
 
   .filter-header { margin-bottom: var(--sm); }
   .sheet-close-mobile { display: inline-flex; }
@@ -909,6 +919,14 @@ select.text-input { padding: 0 var(--md); }
 
   /* recenter button stays visible bottom-right */
   .recenter-btn { bottom: 112px; right: 16px; }
+
+  /* when the sheet is fully open the floating buttons fade away (they'd just
+     hover over the list); drag-time proportional fade is handled in JS */
+  .sidebar.mobile-open ~ .map-section .mobile-filter-fab,
+  .sidebar.mobile-open ~ .map-section .recenter-btn {
+    opacity: 0;
+    pointer-events: none;
+  }
 }
 
 /* ===== Loading ===== */
