@@ -612,13 +612,13 @@ function renderHoursTop(bh, lang) {
   const text = bh[jstWeekdayKey()];
   if (text == null) return '';
   const L = bhLabels(lang);
-  const icon = '<span class="msi size-16">schedule</span>';
+  // no icon — Google Maps shows the status flush-left, aligned with the name/category lines
   if (isClosedDay(text)) {
-    return `<div class="detail-hours">${icon}<span class="bh-line"><span class="bh-status bh-closed">${L.closedDay}</span></span></div>`;
+    return `<div class="detail-hours"><span class="bh-status bh-closed">${L.closedDay}</span></div>`;
   }
   const ranges = parseRanges(text);
   if (!ranges.length) {  // hours present but unparseable → show the raw text
-    return `<div class="detail-hours">${icon}<span class="bh-line"><span class="bh-detail">${escapeHtml(text)}</span></span></div>`;
+    return `<div class="detail-hours"><span class="bh-detail">${escapeHtml(text)}</span></div>`;
   }
   const now = jstNowMinutes();
   let openR = null;
@@ -629,7 +629,7 @@ function renderHoursTop(bh, lang) {
     const next = ranges.filter(r => r.a > now).sort((x, y) => x.a - y.a)[0];
     cls = 'bh-closed'; status = L.closed; detail = next ? `${L.openAt} ${next.startStr}` : '';
   }
-  return `<div class="detail-hours">${icon}<span class="bh-line"><span class="bh-status ${cls}">${status}</span>${detail ? `<span class="bh-sep">·</span><span class="bh-detail">${detail}</span>` : ''}</span></div>`;
+  return `<div class="detail-hours"><span class="bh-status ${cls}">${status}</span>${detail ? `<span class="bh-sep">·</span><span class="bh-detail">${detail}</span>` : ''}</div>`;
 }
 // full-week schedule as an info-row (below the photos)
 function renderHoursWeek(bh, lang) {
