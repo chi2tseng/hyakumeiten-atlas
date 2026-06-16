@@ -119,6 +119,7 @@ input, select { font-family: inherit; font-size: 14px; }
   line-height: 1;
 }
 .brand-mark svg { width: 30px; height: 30px; display: block; }
+.brand-logo { height: 40px; width: auto; display: block; }
 .brand-word {
   font-family: var(--ff-editorial);
   font-size: 22px;
@@ -971,6 +972,18 @@ select.text-input { padding: 0 var(--md); }
   .sidebar.detail-mode .sheet-grip,
   .sidebar.detail-mode .result-list { display: none; }
   .sidebar.detail-mode .sheet-detail { display: flex; }
+  /* in detail view, lift the back button onto the drag-handle row so it doesn't
+     eat its own row — frees vertical space so more restaurant info shows below */
+  .sidebar.detail-mode .sheet-detail-back {
+    position: absolute;
+    top: 0; left: 8px;
+    height: 40px;                 /* aligns with the handle row */
+    padding: 0 8px;
+    border-bottom: 0;
+    background: transparent;
+    z-index: 7;
+  }
+  .sidebar.detail-mode .sheet-detail-content { padding-top: var(--md); }
 
   /* floating buttons ALWAYS visible — JS rides their `bottom` just above the sheet's
      top edge so the sheet never covers them */
@@ -1060,9 +1073,9 @@ select.text-input { padding: 0 var(--md); }
   font-size: 14px; font-weight: 500;
   white-space: nowrap; cursor: pointer;
 }
-.chip.active { background: var(--ink); color: var(--on-primary); border-color: var(--ink); }
+.chip.active { background-color: var(--cream-deeper); color: var(--primary-deep); border-color: var(--primary); }
 .chip .msi { font-size: 18px; color: var(--steel); }
-.chip.active .msi { color: var(--on-primary); }
+.chip.active .msi { color: var(--primary); }
 .chip-search { padding: 0 12px; }
 .chip-search input { border: 0; background: transparent; outline: 0; width: 78px; font-size: 14px; color: var(--ink); }
 .chip-search input::placeholder { color: var(--steel); }
@@ -1072,7 +1085,7 @@ select.text-input { padding: 0 var(--md); }
   background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%238a8a8a' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'><path d='M6 9l6 6 6-6'/></svg>");
   background-repeat: no-repeat; background-position: right 10px center;
 }
-.chip-select.active { background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23ffffff' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'><path d='M6 9l6 6 6-6'/></svg>"); }
+/* active chip keeps the default grey caret on its light highlight background */
 
 @media (max-width: 767px) {
   /* the chip row replaces the tall vertical filter panel + the FAB */

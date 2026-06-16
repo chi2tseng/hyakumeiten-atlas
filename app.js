@@ -213,6 +213,31 @@ function renderFilterOptions() {
   syncChipActive();
 }
 
+// size each mobile filter chip <select> to fit its CURRENT label — a native
+// <select> otherwise reserves the width of its widest option, making chips too wide
+let _chipSizer = null;
+function fitChipWidth(sel) {
+  if (!sel) return;
+  if (!_chipSizer) {
+    _chipSizer = document.createElement('span');
+    _chipSizer.style.cssText = 'position:absolute;left:-9999px;top:-9999px;visibility:hidden;white-space:nowrap;';
+    document.body.appendChild(_chipSizer);
+  }
+  const cs = getComputedStyle(sel);
+  _chipSizer.style.fontFamily = cs.fontFamily;
+  _chipSizer.style.fontSize = cs.fontSize;
+  _chipSizer.style.fontWeight = cs.fontWeight;
+  _chipSizer.style.letterSpacing = cs.letterSpacing;
+  const opt = sel.options[sel.selectedIndex];
+  _chipSizer.textContent = opt ? opt.textContent : '';
+  // border-box: text + left-pad 14 + right-pad 30 (caret) + borders 2 (+1 fudge)
+  sel.style.width = Math.ceil(_chipSizer.getBoundingClientRect().width) + 47 + 'px';
+}
+function fitAllChips() {
+  ['m-pref', 'm-cat', 'm-price', 'm-rating', 'm-reserve']
+    .forEach(id => fitChipWidth(document.getElementById(id)));
+}
+
 // highlight a mobile chip when its filter is active
 function syncChipActive() {
   const f = STATE.filter;
@@ -224,6 +249,7 @@ function syncChipActive() {
   setA('m-reserve', f.reserve);
   const ms = document.getElementById('m-search');
   if (ms && ms.parentElement) ms.parentElement.classList.toggle('active', !!f.q);
+  fitAllChips();
 }
 
 function setupListeners() {

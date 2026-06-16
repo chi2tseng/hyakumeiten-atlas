@@ -36,6 +36,9 @@ window.CAT_I18N = {
   '和菓子・甘味処': { zh: '和菓子',  en: 'Wagashi',         ja: '和菓子・甘味処' },
   'スイーツ':    { zh: '甜點',       en: 'Sweets',          ja: 'スイーツ' },
   'パン':        { zh: '麵包',       en: 'Bakery',          ja: 'パン' },
+  'アジア':      { zh: '亞洲料理',   en: 'Asian',           ja: 'アジア' },
+  '和菓子':      { zh: '和菓子',     en: 'Wagashi',         ja: '和菓子' },
+  'ステーキ':    { zh: '牛排',       en: 'Steak',           ja: 'ステーキ' },
 };
 
 // Prefecture translation: Japanese-kanji → { zh, en, ja }
