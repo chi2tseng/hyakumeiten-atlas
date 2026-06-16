@@ -76,14 +76,72 @@ window.addEventListener('DOMContentLoaded', async () => {
 });
 
 // ===== Map =====
+// Stepless smooth wheel zoom (mutsuyuki/Leaflet.SmoothWheelZoom): each animation frame
+// transforms the existing tiles via map._move (NO tile reload mid-gesture) and reloads
+// once at the end → continuous "no-step" zoom with no repeated map flashing.
+if (window.L && L.Handler && !L.Map.SmoothWheelZoom) {
+  L.Map.mergeOptions({ smoothWheelZoom: true, smoothSensitivity: 1 });
+  L.Map.SmoothWheelZoom = L.Handler.extend({
+    addHooks: function () { L.DomEvent.on(this._map._container, 'wheel', this._onWheelScroll, this); },
+    removeHooks: function () { L.DomEvent.off(this._map._container, 'wheel', this._onWheelScroll, this); },
+    _onWheelScroll: function (e) { if (!this._isWheeling) this._onWheelStart(e); this._onWheeling(e); },
+    _onWheelStart: function (e) {
+      var map = this._map;
+      this._isWheeling = true;
+      this._wheelMousePosition = map.mouseEventToContainerPoint(e);
+      this._centerPoint = map.getSize()._divideBy(2);
+      this._startLatLng = map.containerPointToLatLng(this._centerPoint);
+      this._wheelStartLatLng = map.containerPointToLatLng(this._wheelMousePosition);
+      this._startZoom = map.getZoom();
+      this._moved = false;
+      this._zooming = true;
+      map._stop();
+      if (map._panAnim) map._panAnim.stop();
+      this._goalZoom = map.getZoom();
+      this._prevCenter = map.getCenter();
+      this._prevZoom = map.getZoom();
+      this._zoomAnimationId = requestAnimationFrame(this._updateWheelZoom.bind(this));
+      L.DomEvent.on(document, 'mousemove', this._onWheelEnd, this);
+      L.DomEvent.preventDefault(e);
+    },
+    _onWheeling: function (e) {
+      var map = this._map;
+      this._goalZoom = this._goalZoom - e.deltaY * 0.003 * map.options.smoothSensitivity;
+      if (this._goalZoom < map.getMinZoom() || this._goalZoom > map.getMaxZoom()) this._goalZoom = map._limitZoom(this._goalZoom);
+      this._wheelMousePosition = map.mouseEventToContainerPoint(e);
+      clearTimeout(this._timeoutId);
+      this._timeoutId = setTimeout(this._onWheelEnd.bind(this), 200);
+      L.DomEvent.preventDefault(e);
+    },
+    _onWheelEnd: function () {
+      this._isWheeling = false;
+      cancelAnimationFrame(this._zoomAnimationId);
+      this._map._moveEnd(true);
+      L.DomEvent.off(document, 'mousemove', this._onWheelEnd, this);
+    },
+    _updateWheelZoom: function () {
+      var map = this._map;
+      if (!map.getCenter() || this._goalZoom == null) return;
+      var zoom = map.getZoom();
+      zoom = zoom + (this._goalZoom - zoom) * 0.3;
+      zoom = Math.round(zoom * 100) / 100;
+      var center = map.unproject(
+        map.project(this._wheelStartLatLng, zoom).subtract(this._wheelMousePosition).add(this._centerPoint), zoom);
+      map._move(center, zoom, { flyTo: true });
+      this._zoomAnimationId = requestAnimationFrame(this._updateWheelZoom.bind(this));
+    },
+  });
+  L.Map.addInitHook('addHandler', 'smoothWheelZoom', L.Map.SmoothWheelZoom);
+}
+
 function initMap() {
   STATE.map = L.map('map', {
     zoomControl: true,
-    scrollWheelZoom: true,        // native animated wheel zoom (no tile blanking)
-    zoomSnap: 0,                  // land on fractional zooms for a smooth glide
+    scrollWheelZoom: false,       // replaced by the stepless smoothWheelZoom handler above
+    smoothWheelZoom: true,
+    smoothSensitivity: 1.5,       // wheel sensitivity (higher = faster zoom per scroll)
+    zoomSnap: 0,                  // fractional zooms — smooth glide
     zoomDelta: 0.6,
-    wheelDebounceTime: 35,        // batch a wheel fling into ONE smooth zoom (kills stutter)
-    wheelPxPerZoomLevel: 55,      // FAST: ~2× quicker zoom per scroll than before (was 110)
     zoomAnimation: true,
     fadeAnimation: true,
     markerZoomAnimation: false,   // don't re-animate every pin during zoom
@@ -532,28 +590,46 @@ function isOpenNow(text) {
 }
 function bhLabels(lang) {
   return ({
-    zh: { open: '營業中', closed: '休息中', today: '今日', hours: '營業時間', closedDay: '今日公休' },
-    en: { open: 'Open', closed: 'Closed', today: 'Today', hours: 'Hours', closedDay: 'Closed today' },
-    ja: { open: '営業中', closed: '営業時間外', today: '本日', hours: '営業時間', closedDay: '本日定休' },
-  })[lang] || { open: '營業中', closed: '休息中', today: '今日', hours: '營業時間', closedDay: '今日公休' };
+    zh: { open: '營業中', closed: '休息中', hours: '營業時間', closedDay: '今日公休', closeAt: '營業至', openAt: '營業開始' },
+    en: { open: 'Open', closed: 'Closed', hours: 'Hours', closedDay: 'Closed today', closeAt: 'Closes', openAt: 'Opens' },
+    ja: { open: '営業中', closed: '営業時間外', hours: '営業時間', closedDay: '本日定休', closeAt: '営業終了', openAt: '営業開始' },
+  })[lang] || { open: '營業中', closed: '休息中', hours: '營業時間', closedDay: '今日公休', closeAt: '營業至', openAt: '營業開始' };
 }
 function dayLabels(lang) {
   if (lang === 'en') return { 月: 'Mon', 火: 'Tue', 水: 'Wed', 木: 'Thu', 金: 'Fri', 土: 'Sat', 日: 'Sun', 祝: 'Hol' };
   if (lang === 'ja') return { 月: '月', 火: '火', 水: '水', 木: '木', 金: '金', 土: '土', 日: '日', 祝: '祝' };
   return { 月: '週一', 火: '週二', 水: '週三', 木: '週四', 金: '週五', 土: '週六', 日: '週日', 祝: '假日' };
 }
-// compact "today + open/closed" line for the top of the detail
+function parseRanges(text) {
+  return [...text.matchAll(/(\d{1,2}):(\d{2})\s*[-~〜–]\s*(\d{1,2}):(\d{2})/g)].map(m => {
+    const a = (+m[1]) * 60 + (+m[2]); let b = (+m[3]) * 60 + (+m[4]); if (b <= a) b += 1440;  // overnight
+    return { a, b, startStr: m[1].padStart(2, '0') + ':' + m[2], endStr: m[3].padStart(2, '0') + ':' + m[4] };
+  });
+}
+// Google-Maps-style one-line status: 「營業中 · 營業至 21:00」 / 「休息中 · 營業開始 11:00」
 function renderHoursTop(bh, lang) {
   if (!bh) return '';
   const text = bh[jstWeekdayKey()];
   if (text == null) return '';
   const L = bhLabels(lang);
-  let status;
-  if (isClosedDay(text)) status = `<span class="bh-status bh-closed">${L.closedDay}</span>`;
-  else { const o = isOpenNow(text); status = o === true ? `<span class="bh-status bh-open">${L.open}</span>` : (o === false ? `<span class="bh-status bh-closed">${L.closed}</span>` : ''); }
-  const today = isClosedDay(text) ? '' : `<span class="bh-today">${L.today} ${escapeHtml(text)}</span>`;
-  if (!status && !today) return '';
-  return `<div class="detail-hours"><span class="msi size-16">schedule</span>${status}${today}</div>`;
+  const icon = '<span class="msi size-16">schedule</span>';
+  if (isClosedDay(text)) {
+    return `<div class="detail-hours">${icon}<span class="bh-line"><span class="bh-status bh-closed">${L.closedDay}</span></span></div>`;
+  }
+  const ranges = parseRanges(text);
+  if (!ranges.length) {  // hours present but unparseable → show the raw text
+    return `<div class="detail-hours">${icon}<span class="bh-line"><span class="bh-detail">${escapeHtml(text)}</span></span></div>`;
+  }
+  const now = jstNowMinutes();
+  let openR = null;
+  for (const r of ranges) { let n = now; if (n < r.a && r.b > 1440) n += 1440; if (n >= r.a && n < r.b) { openR = r; break; } }
+  let cls, status, detail;
+  if (openR) { cls = 'bh-open'; status = L.open; detail = `${L.closeAt} ${openR.endStr}`; }
+  else {
+    const next = ranges.filter(r => r.a > now).sort((x, y) => x.a - y.a)[0];
+    cls = 'bh-closed'; status = L.closed; detail = next ? `${L.openAt} ${next.startStr}` : '';
+  }
+  return `<div class="detail-hours">${icon}<span class="bh-line"><span class="bh-status ${cls}">${status}</span>${detail ? `<span class="bh-sep">·</span><span class="bh-detail">${detail}</span>` : ''}</span></div>`;
 }
 // full-week schedule as an info-row (below the photos)
 function renderHoursWeek(bh, lang) {
