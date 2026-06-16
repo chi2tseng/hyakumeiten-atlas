@@ -930,8 +930,8 @@ select.text-input { padding: 0 var(--md); }
     bottom: 0;
     left: 0;
     right: 0;
-    height: 50vh;                 /* bottom stop (default) — name/info + photo strip; map above */
-    max-height: 50vh;
+    height: 25vh;                 /* list bottom stop — low, so the map stays visible */
+    max-height: 25vh;
     background: var(--canvas);
     border-right: 0;
     border-top: 1px solid var(--hairline);
@@ -945,7 +945,7 @@ select.text-input { padding: 0 var(--md); }
     overflow: hidden;
   }
   .sidebar.sheet-collapsed { height: 88px; max-height: 88px; }    /* just handle + 1 row */
-  .sidebar.sheet-half { height: 62vh; max-height: 62vh; }          /* detail view — map visible above */
+  .sidebar.detail-mode:not(.mobile-open) { height: 52vh; max-height: 52vh; }   /* detail bottom stop — name/info + address + photos */
   /* full reaches right under the top nav — no leftover strip of map */
   .sidebar.mobile-open { height: calc(100vh - var(--nav-h)); max-height: calc(100vh - var(--nav-h)); }
   .sidebar.dragging { transition: none; }                          /* follow the finger live */

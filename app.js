@@ -426,7 +426,7 @@ function renderList() {
     const thumb = r.cv || (r.ph && r.ph[0]) || '';
     return `
     <div class="rest-card" data-url="${encodeURIComponent(r.u)}">
-      ${thumb ? `<div class="rest-card-thumb"><img loading="lazy" src="${escapeHtml(thumb)}" alt=""/></div>` : `<div class="rest-card-thumb"></div>`}
+      ${thumb ? `<div class="rest-card-thumb"><img loading="lazy" src="${escapeHtml(thumb)}" alt="" onerror="this.style.display='none'"/></div>` : `<div class="rest-card-thumb"></div>`}
       <div class="rest-card-body">
         <div class="rest-card-name">${escapeHtml(r.n)}</div>
         <div class="rest-card-meta">
@@ -556,23 +556,6 @@ function renderDetail(r, loading, contentEl) {
         ${r.w > 1 ? `<span class="badge badge-orange">${dict['detail-awards']} ${r.w} ${dict['detail-times']}</span>` : ''}
         ${r.rs ? `<span class="badge badge-reserve-${r.rs}"><span class="cat-ico">${reserveIcon(r.rs)}</span>${reserveLabel(r.rs, lang)}</span>` : ''}
       </div>` : ''}
-      <div class="action-row">
-        <a class="action-btn action-btn-primary" href="${gmaps}" target="_blank" rel="noopener">
-          <img class="brand-ico" src="https://www.google.com/s2/favicons?domain=maps.google.com&sz=64" alt="" loading="lazy" />
-          ${dict['detail-gmap']}
-        </a>
-        <a class="action-btn" href="${escapeHtml(r.u)}" target="_blank" rel="noopener">
-          <img class="brand-ico" src="https://www.google.com/s2/favicons?domain=tabelog.com&sz=64" alt="" loading="lazy" />
-          ${dict['detail-tabelog']}
-        </a>
-      </div>
-    </div>
-
-    ${photos.length
-      ? `<div class="detail-photos">${photos.slice(0, 20).map((p, i) => `<button class="detail-photo" data-photo="${i}"><img loading="lazy" src="${escapeHtml(p)}" alt=""/></button>`).join('')}</div>`
-      : (loading ? `<div class="detail-photos detail-photos-loading"><div class="spinner"></div></div>` : '')}
-
-    <div class="detail-body">
       <div class="info-rows">
         ${r.a ? `<div class="info-row"><span class="label"><span class="msi size-16">place</span> ${dict['detail-address']}</span><span class="value"><span>${escapeHtml(r.a)}</span><button class="copy-btn" data-copy="${escapeHtml(r.a)}" title="${copyTitle}" aria-label="${copyTitle}"><span class="msi">content_copy</span></button></span></div>` : ''}
         ${r.rs ? `<div class="info-row"><span class="label"><span class="msi size-16">${reserveIcon(r.rs)}</span> ${dict['reserve-label']}</span><span class="value">${escapeHtml(reserveLabel(r.rs, lang))}</span></div>` : ''}
@@ -580,12 +563,26 @@ function renderDetail(r, loading, contentEl) {
         ${r.l ? `<div class="info-row"><span class="label"><span class="msi size-16">brunch_dining</span> ${dict['detail-lunch']}</span><span class="value">${escapeHtml(r.l)}</span></div>` : ''}
         ${r.y ? `<div class="info-row"><span class="label"><span class="msi size-16">emoji_events</span> ${dict['detail-awards']}</span><span class="value">${escapeHtml(r.y)}</span></div>` : ''}
       </div>
-
-      ${(!photos.length && !loading) ? `<div class="photo-placeholder"><span class="msi size-24">image_search</span><p>${dict['detail-photos-soon']}</p></div>` : ''}
-
-      <div class="section-title"><span class="msi size-16">reviews</span> ${dict['detail-reviews']}</div>
-      ${reviewsHtml}
     </div>
+
+    ${photos.length
+      ? `<div class="detail-photos">${photos.slice(0, 20).map((p, i) => `<button class="detail-photo" data-photo="${i}"><img loading="lazy" src="${escapeHtml(p)}" alt="" onerror="this.closest('.detail-photo').remove()"/></button>`).join('')}</div>`
+      : (loading ? `<div class="detail-photos detail-photos-loading"><div class="spinner"></div></div>` : '')}
+    ${(!photos.length && !loading) ? `<div class="photo-placeholder"><span class="msi size-24">image_search</span><p>${dict['detail-photos-soon']}</p></div>` : ''}
+
+    <div class="action-row">
+      <a class="action-btn action-btn-primary" href="${gmaps}" target="_blank" rel="noopener">
+        <img class="brand-ico" src="https://www.google.com/s2/favicons?domain=maps.google.com&sz=64" alt="" loading="lazy" />
+        ${dict['detail-gmap']}
+      </a>
+      <a class="action-btn" href="${escapeHtml(r.u)}" target="_blank" rel="noopener">
+        <img class="brand-ico" src="https://www.google.com/s2/favicons?domain=tabelog.com&sz=64" alt="" loading="lazy" />
+        ${dict['detail-tabelog']}
+      </a>
+    </div>
+
+    <div class="section-title"><span class="msi size-16">reviews</span> ${dict['detail-reviews']}</div>
+    ${reviewsHtml}
   `;
 }
 
@@ -748,9 +745,11 @@ function setupSheetGrip() {
 function navHeight() { return (document.querySelector('.top-nav') || {}).offsetHeight || 56; }
 function sheetHeights() {
   const vh = window.innerHeight;
-  // two stops only: 'peek' (bottom — shows name/info + photo strip) and 'full' (top, under nav)
-  const peek = Math.round(vh * 0.5);
-  return { peek, full: vh - navHeight() };
+  // two stops: 'peek' (bottom) and 'full' (top, under nav). The bottom stop is LOW for the
+  // list (map stays visible) but taller in a restaurant detail (so info + photos show).
+  const sb = document.getElementById('sidebar');
+  const detail = sb && sb.classList.contains('detail-mode');
+  return { peek: Math.round(vh * (detail ? 0.52 : 0.25)), full: vh - navHeight() };
 }
 // keep the floating buttons (filter FAB + recenter) just above the sheet's top edge so
 // they stay visible while there's a map to use; once the sheet is essentially full-screen
