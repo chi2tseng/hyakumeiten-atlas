@@ -819,52 +819,80 @@ function setSheetState(s) {
 }
 function setupMobileSheet() {
   const sidebar = document.getElementById('sidebar');
-  const handle = document.getElementById('sheet-handle');
-  if (!sidebar || !handle) return;
+  const handle  = document.getElementById('sheet-handle');
+  if (!sidebar) return;
   const isMobile = () => window.matchMedia('(max-width: 767px)').matches;
   const cur = () => sidebar.dataset.sheet || 'peek';
   sidebar.dataset.sheet = 'peek';
   positionSheetButtons();
-  const UP   = { collapsed: 'peek', peek: 'half', half: 'full', full: 'full' };       // swipe up = expand
-  const DOWN = { full: 'half', half: 'peek', peek: 'collapsed', collapsed: 'collapsed' }; // swipe down = shrink
 
-  let startY = null, startH = 0, dragging = false, moved = false, pid = null;
-
-  handle.addEventListener('pointerdown', (e) => {
-    if (!isMobile()) return;
-    startY = e.clientY;
-    startH = sidebar.getBoundingClientRect().height;
-    dragging = true; moved = false; pid = e.pointerId;
-    sidebar.classList.add('dragging');                 // transition off → follow finger
-    try { handle.setPointerCapture(pid); } catch (_) {}
-  });
-  handle.addEventListener('pointermove', (e) => {
-    if (!dragging) return;
-    const dy = startY - e.clientY;                     // up = positive
-    if (Math.abs(dy) > 4) moved = true;
-    const H = sheetHeights();
-    const h = Math.max(H.collapsed, Math.min(H.full, startH + dy));
-    sidebar.style.height = h + 'px';                   // live-follow (both, since max-height is the cap)
-    sidebar.style.maxHeight = h + 'px';
-    positionSheetButtons(h);                           // buttons follow the finger too
-    e.preventDefault();
-  });
-  const end = (e) => {
-    if (!dragging) return;
-    dragging = false;
-    sidebar.classList.remove('dragging');              // re-enable transition for the snap
-    const dy = startY - (e.clientY != null ? e.clientY : startY);
-    let target;
-    if (!moved) target = cur() === 'full' ? 'peek' : 'full';   // tap toggles
-    else if (dy > 30) target = UP[cur()];              // swiped up → expand
-    else if (dy < -30) target = DOWN[cur()];           // swiped down → shrink
-    else target = cur();                               // tiny move → settle current
-    setSheetState(target);                             // clears inline + animates to class height
-    try { handle.releasePointerCapture(pid); } catch (_) {}
-    pid = null; startY = null;
+  const EPS = 2;
+  const applyHeight = (h) => {
+    sidebar.style.height = h + 'px';
+    sidebar.style.maxHeight = h + 'px';                // max-height is the real cap
+    positionSheetButtons(h);                           // floating buttons ride the finger
   };
-  handle.addEventListener('pointerup', end);
-  handle.addEventListener('pointercancel', end);
+  const snapToNearest = (h) => {
+    const H = sheetHeights();
+    const order = [['collapsed', H.collapsed], ['peek', H.peek], ['half', H.half], ['full', H.full]];
+    let best = order[0];
+    for (const s of order) if (Math.abs(s[1] - h) < Math.abs(best[1] - h)) best = s;
+    setSheetState(best[0]);                             // clears inline + animates to the class height
+  };
+  // the element that actually scrolls in the current state
+  const activeScroller = () => {
+    if (sidebar.classList.contains('detail-mode')) return document.getElementById('sheet-detail-content');
+    if (sidebar.classList.contains('mobile-open'))  return sidebar;          // full list = sidebar scrolls
+    return document.getElementById('result-list');                           // partial list (non-scroll)
+  };
+
+  // Google-Maps nested scroll: while the sheet isn't full, dragging the list/detail
+  // GROWS the sheet (up) or SHRINKS it (down); once full, the content scrolls natively
+  // and only a pull-down at the very TOP collapses the sheet again.
+  let sY = 0, sH = 0, sTop = 0, mode = null, decided = false, onHandle = false;
+  const begin = (clientY, target) => {
+    if (!isMobile()) { mode = 'disabled'; return; }
+    sY = clientY;
+    sH = sidebar.getBoundingClientRect().height;
+    onHandle = !!(handle && (target === handle || handle.contains(target)));
+    const sc = activeScroller();
+    sTop = sc ? sc.scrollTop : 0;
+    mode = null; decided = false;
+  };
+  const drag = (clientY, ev) => {
+    if (mode === 'disabled' || !isMobile()) return;
+    const dy = sY - clientY;                            // up = positive
+    const H = sheetHeights();
+    const isFull = sH >= H.full - EPS;
+    if (!decided) {
+      if (Math.abs(dy) < 4) return;
+      decided = true;
+      if (onHandle)      mode = 'resize';                              // handle always resizes
+      else if (!isFull)  mode = 'resize';                             // partial: drag grows/shrinks sheet
+      else if (dy > 0)   mode = 'native';                             // full + up: scroll the content
+      else               mode = (sTop <= 0) ? 'resize' : 'native';    // full + down: collapse only at top
+      if (mode === 'resize') sidebar.classList.add('dragging');       // transition off → follow finger
+    }
+    if (mode === 'resize') {
+      if (ev.cancelable) ev.preventDefault();
+      applyHeight(Math.max(H.collapsed, Math.min(H.full, sH + dy)));
+    }
+    // mode 'native' → let the browser scroll the content (momentum preserved)
+  };
+  const finish = () => {
+    if (mode === 'resize') {
+      sidebar.classList.remove('dragging');
+      snapToNearest(sidebar.getBoundingClientRect().height);
+    } else if (!decided && onHandle) {
+      setSheetState(cur() === 'full' ? 'peek' : 'full');              // tap the handle to toggle
+    }
+    mode = null; decided = false; onHandle = false;
+  };
+
+  sidebar.addEventListener('touchstart', (e) => { if (e.touches.length === 1) begin(e.touches[0].clientY, e.target); }, { passive: true });
+  sidebar.addEventListener('touchmove',  (e) => { if (e.touches.length === 1) drag(e.touches[0].clientY, e); }, { passive: false });
+  sidebar.addEventListener('touchend', finish);
+  sidebar.addEventListener('touchcancel', finish);
 }
 
 // Parse "～￥999" / "~¥1,999" patterns → upper bound number, or null if no upper-only pattern

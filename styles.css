@@ -990,6 +990,23 @@ select.text-input { padding: 0 var(--md); }
   }
   .sidebar.detail-mode .sheet-detail-content { padding-top: var(--md); }
 
+  /* ===== Google-Maps nested scroll =====
+     Partial sheet (peek/half): the content does NOT scroll on its own — a drag on it
+     grows the sheet toward full (up) or shrinks it (down). Only once the sheet is FULL
+     does the content scroll natively, and a pull-down at the very top collapses it. */
+  .sidebar:not(.mobile-open) .result-list,
+  .sidebar.detail-mode:not(.mobile-open) .sheet-detail-content {
+    overflow: hidden;
+    touch-action: none;
+  }
+  .sidebar.mobile-open { overscroll-behavior: contain; }
+  /* full + detail: only the detail content scrolls (not the sheet) → no double scroll */
+  .sidebar.detail-mode.mobile-open { overflow: hidden; }
+  .sidebar.detail-mode.mobile-open .sheet-detail-content {
+    overflow-y: auto; -webkit-overflow-scrolling: touch;
+    touch-action: pan-y; overscroll-behavior: contain;
+  }
+
   /* floating buttons ALWAYS visible — JS rides their `bottom` just above the sheet's
      top edge so the sheet never covers them */
   .mobile-filter-fab { display: inline-flex; left: 16px; bottom: 112px; }
