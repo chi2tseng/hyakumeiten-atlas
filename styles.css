@@ -119,7 +119,7 @@ input, select { font-family: inherit; font-size: 14px; }
   line-height: 1;
 }
 .brand-mark svg { width: 30px; height: 30px; display: block; }
-.brand-logo { height: 40px; width: auto; display: block; }
+.brand-logo { height: 32px; width: auto; display: block; }
 .brand-word {
   font-family: var(--ff-editorial);
   font-size: 22px;
