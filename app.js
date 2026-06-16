@@ -123,9 +123,16 @@ function isInViewport(r) {
   return STATE.map.getBounds().contains([r.lat, r.lng]);
 }
 
-function customPin(rating) {
-  const cls = rating && rating >= 3.7 ? 'pin-marker high-rating' : 'pin-marker';
-  return L.divIcon({ html: `<div class="${cls}"></div>`, iconSize: [28, 28], iconAnchor: [14, 28], className: 'pin-wrapper' });
+function customPin(r) {
+  const cat = (r.c || '').split('/')[0] || '';
+  const ic = categoryIcon(cat);
+  const hi = r.r && r.r >= 3.7 ? ' high-rating' : '';
+  return L.divIcon({
+    html: `<div class="pin-bg${hi}"></div><span class="msi pin-ico">${ic}</span>`,
+    iconSize: [34, 44],
+    iconAnchor: [17, 41],
+    className: 'pin-wrapper',
+  });
 }
 
 function renderMarkers() {
@@ -139,7 +146,7 @@ function renderMarkers() {
   const layers = [];
   for (const r of STATE.filtered) {
     if (typeof r.lat !== 'number' || typeof r.lng !== 'number') continue;
-    const m = L.marker([r.lat, r.lng], { icon: customPin(r.r) });
+    const m = L.marker([r.lat, r.lng], { icon: customPin(r) });
     m.on('click', () => openDetail(r));
     STATE.markers.set(r.u, m);
     layers.push(m);

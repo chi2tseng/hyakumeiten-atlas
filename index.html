@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>百名店 · Tabelog Hyakumeiten Atlas</title>
   <meta name="description" content="Tabelog 過去 10 年百名店全國 10,067 家餐廳地圖 — 篩選、定位、評論" />
+  <link rel="icon" type="image/svg+xml" href="./favicon.svg" />
 
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -19,14 +20,20 @@
   <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.css" />
   <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.Default.css" />
 
-  <link rel="stylesheet" href="./styles.css?v=20260615r" />
+  <link rel="stylesheet" href="./styles.css?v=20260616a" />
 </head>
 <body>
 
   <!-- Top nav -->
   <header class="top-nav">
     <div class="brand">
-      <span class="brand-mark">百</span>
+      <span class="brand-mark" role="img" aria-label="百名店 Hyakumeiten">
+        <svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+          <rect x="20" y="20" width="60" height="9" rx="4.5" fill="currentColor"/>
+          <path fill-rule="evenodd" clip-rule="evenodd" fill="currentColor"
+            d="M35 36 H65 a9 9 0 0 1 9 9 V73 a9 9 0 0 1 -9 9 H35 a9 9 0 0 1 -9 -9 V45 a9 9 0 0 1 9 -9 Z M35 45 h30 v10 h-30 Z M35 63 h30 v10 h-30 Z"/>
+        </svg>
+      </span>
     </div>
 
     <nav class="nav-actions">
@@ -204,7 +211,7 @@
     <div class="lightbox-count" id="lightbox-count"></div>
   </div>
 
-  <script src="./i18n.js?v=20260615r"></script>
-  <script src="./app.js?v=20260615r"></script>
+  <script src="./i18n.js?v=20260616a"></script>
+  <script src="./app.js?v=20260616a"></script>
 </body>
 </html>

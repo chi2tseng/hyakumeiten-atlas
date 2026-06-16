@@ -113,12 +113,12 @@ input, select { font-family: inherit; font-size: 14px; }
 }
 .brand { display: flex; align-items: center; gap: var(--sm); }
 .brand-mark {
-  font-family: var(--ff-editorial);
-  font-size: 32px;
-  font-weight: 500;
+  display: flex;
+  align-items: center;
   color: var(--primary);
   line-height: 1;
 }
+.brand-mark svg { width: 30px; height: 30px; display: block; }
 .brand-word {
   font-family: var(--ff-editorial);
   font-size: 22px;
@@ -483,16 +483,27 @@ select.text-input { padding: 0 var(--md); }
   border: 1px solid var(--hairline) !important;
 }
 
-/* custom pin */
-.pin-marker {
-  width: 28px; height: 28px;
+/* custom pin — Google-Maps-style teardrop with category icon */
+.pin-wrapper { background: none; border: none; }
+.pin-bg {
+  position: absolute; left: 1px; top: 0;
+  width: 32px; height: 32px;
   background: var(--primary);
   border: 2px solid var(--canvas);
   border-radius: 50% 50% 50% 0;
   transform: rotate(-45deg);
-  box-shadow: 0 2px 8px rgba(0,0,0,0.25);
+  box-shadow: 0 2px 6px rgba(0,0,0,0.3);
 }
-.pin-marker.high-rating { background: var(--sunshine-900); }
+.pin-bg.high-rating { background: var(--sunshine-900); }
+.pin-ico {
+  position: absolute; left: 0; top: 6px;
+  width: 34px; text-align: center;
+  color: #fff;
+  font-size: 17px;
+  font-variation-settings: 'opsz' 20, 'wght' 500, 'FILL' 1, 'GRAD' 0;
+  pointer-events: none;
+  text-shadow: 0 1px 1px rgba(0,0,0,0.25);
+}
 
 /* cluster styling */
 .marker-cluster-small { background-color: rgba(255, 184, 62, 0.5); }
@@ -856,7 +867,7 @@ select.text-input { padding: 0 var(--md); }
   .promo-banner { font-size: 12px; padding: 0 var(--sm); }
   .top-nav { padding: 0 var(--md); height: var(--nav-h); }
   .brand-word { display: none; }
-  .brand-mark { font-size: 28px; }
+  .brand-mark svg { width: 26px; height: 26px; }
   .nav-actions { gap: var(--xs); }
   #locate-btn { padding: 8px 12px; font-size: 13px; }
   #locate-btn span:not(.msi) { display: none; }
