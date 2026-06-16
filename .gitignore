@@ -7,3 +7,4 @@ data/restaurants.json
 # review-translation scratch (intermediate parts; merged output lives in data/d/*.json)
 data/_tx/
 data/_txd/
+data/_hours.json

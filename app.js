@@ -470,7 +470,7 @@ async function loadDetail(r) {
       DETAIL_CACHE.set(key, shard);
     }
     const d = shard[id];
-    if (d) { if (d.rv) r.rv = d.rv; if (d.ph) r.ph = d.ph; }
+    if (d) { if (d.rv) r.rv = d.rv; if (d.ph) r.ph = d.ph; if (d.bh) r.bh = d.bh; }
   } catch (e) {
     console.warn('detail load failed', id, e && e.message);
   }
@@ -501,6 +501,66 @@ function openDetail(r) {
   if (!r._detailLoaded) {
     loadDetail(r).then(() => { if (STATE.openRest === r) renderDetail(r, false, contentEl); });
   }
+}
+
+// ===== Business hours (bh = { 月:"11:00 - 22:00", ..., 日:"定休日", 祝:"..." }) =====
+function jstWeekdayKey() {
+  const wd = new Date().toLocaleDateString('en-US', { timeZone: 'Asia/Tokyo', weekday: 'short' });
+  return { Mon: '月', Tue: '火', Wed: '水', Thu: '木', Fri: '金', Sat: '土', Sun: '日' }[wd] || '月';
+}
+function jstNowMinutes() {
+  const s = new Date().toLocaleTimeString('en-GB', { timeZone: 'Asia/Tokyo', hour12: false, hour: '2-digit', minute: '2-digit' });
+  const [h, m] = s.split(':').map(Number); return h * 60 + m;
+}
+function isClosedDay(text) { return /定休|休み|休業/.test(text) && !/\d/.test(text); }
+function isOpenNow(text) {
+  if (!text || isClosedDay(text)) return false;
+  const ranges = [...text.matchAll(/(\d{1,2}):(\d{2})\s*[-~〜–]\s*(\d{1,2}):(\d{2})/g)];
+  if (!ranges.length) return null;
+  const now = jstNowMinutes();
+  for (const m of ranges) {
+    const a = (+m[1]) * 60 + (+m[2]); let b = (+m[3]) * 60 + (+m[4]);
+    if (b <= a) b += 1440;                          // crosses midnight
+    let n = now; if (n < a && b > 1440) n += 1440;  // early-morning side of an overnight range
+    if (n >= a && n < b) return true;
+  }
+  return false;
+}
+function bhLabels(lang) {
+  return ({
+    zh: { open: '營業中', closed: '休息中', today: '今日', hours: '營業時間', closedDay: '今日公休' },
+    en: { open: 'Open', closed: 'Closed', today: 'Today', hours: 'Hours', closedDay: 'Closed today' },
+    ja: { open: '営業中', closed: '営業時間外', today: '本日', hours: '営業時間', closedDay: '本日定休' },
+  })[lang] || { open: '營業中', closed: '休息中', today: '今日', hours: '營業時間', closedDay: '今日公休' };
+}
+function dayLabels(lang) {
+  if (lang === 'en') return { 月: 'Mon', 火: 'Tue', 水: 'Wed', 木: 'Thu', 金: 'Fri', 土: 'Sat', 日: 'Sun', 祝: 'Hol' };
+  if (lang === 'ja') return { 月: '月', 火: '火', 水: '水', 木: '木', 金: '金', 土: '土', 日: '日', 祝: '祝' };
+  return { 月: '週一', 火: '週二', 水: '週三', 木: '週四', 金: '週五', 土: '週六', 日: '週日', 祝: '假日' };
+}
+// compact "today + open/closed" line for the top of the detail
+function renderHoursTop(bh, lang) {
+  if (!bh) return '';
+  const text = bh[jstWeekdayKey()];
+  if (text == null) return '';
+  const L = bhLabels(lang);
+  let status;
+  if (isClosedDay(text)) status = `<span class="bh-status bh-closed">${L.closedDay}</span>`;
+  else { const o = isOpenNow(text); status = o === true ? `<span class="bh-status bh-open">${L.open}</span>` : (o === false ? `<span class="bh-status bh-closed">${L.closed}</span>` : ''); }
+  const today = isClosedDay(text) ? '' : `<span class="bh-today">${L.today} ${escapeHtml(text)}</span>`;
+  if (!status && !today) return '';
+  return `<div class="detail-hours"><span class="msi size-16">schedule</span>${status}${today}</div>`;
+}
+// full-week schedule as an info-row (below the photos)
+function renderHoursWeek(bh, lang) {
+  if (!bh) return '';
+  const order = ['月', '火', '水', '木', '金', '土', '日']; if (bh['祝'] != null) order.push('祝');
+  const dl = dayLabels(lang); const today = jstWeekdayKey();
+  const rows = order.filter(d => bh[d] != null).map(d =>
+    `<div class="bh-row${d === today ? ' bh-row-today' : ''}"><span class="bh-d">${dl[d]}</span><span class="bh-t">${escapeHtml(bh[d])}</span></div>`).join('');
+  if (!rows) return '';
+  const L = bhLabels(lang);
+  return `<div class="info-row"><span class="label"><span class="msi size-16">schedule</span> ${L.hours}</span><div class="value"><div class="bh-week">${rows}</div></div></div>`;
 }
 
 function renderDetail(r, loading, contentEl) {
@@ -556,19 +616,22 @@ function renderDetail(r, loading, contentEl) {
         ${r.w > 1 ? `<span class="badge badge-orange">${dict['detail-awards']} ${r.w} ${dict['detail-times']}</span>` : ''}
         ${r.rs ? `<span class="badge badge-reserve-${r.rs}"><span class="cat-ico">${reserveIcon(r.rs)}</span>${reserveLabel(r.rs, lang)}</span>` : ''}
       </div>` : ''}
-      <div class="info-rows">
-        ${r.a ? `<div class="info-row"><span class="label"><span class="msi size-16">place</span> ${dict['detail-address']}</span><span class="value"><span>${escapeHtml(r.a)}</span><button class="copy-btn" data-copy="${escapeHtml(r.a)}" title="${copyTitle}" aria-label="${copyTitle}"><span class="msi">content_copy</span></button></span></div>` : ''}
-        ${r.rs ? `<div class="info-row"><span class="label"><span class="msi size-16">${reserveIcon(r.rs)}</span> ${dict['reserve-label']}</span><span class="value">${escapeHtml(reserveLabel(r.rs, lang))}</span></div>` : ''}
-        ${r.d ? `<div class="info-row"><span class="label"><span class="msi size-16">restaurant</span> ${dict['detail-dinner']}</span><span class="value">${escapeHtml(r.d)}</span></div>` : ''}
-        ${r.l ? `<div class="info-row"><span class="label"><span class="msi size-16">brunch_dining</span> ${dict['detail-lunch']}</span><span class="value">${escapeHtml(r.l)}</span></div>` : ''}
-        ${r.y ? `<div class="info-row"><span class="label"><span class="msi size-16">emoji_events</span> ${dict['detail-awards']}</span><span class="value">${escapeHtml(r.y)}</span></div>` : ''}
-      </div>
+      ${renderHoursTop(r.bh, lang)}
     </div>
 
     ${photos.length
       ? `<div class="detail-photos">${photos.slice(0, 20).map((p, i) => `<button class="detail-photo" data-photo="${i}"><img loading="lazy" src="${escapeHtml(p)}" alt="" onerror="this.closest('.detail-photo').remove()"/></button>`).join('')}</div>`
       : (loading ? `<div class="detail-photos detail-photos-loading"><div class="spinner"></div></div>` : '')}
     ${(!photos.length && !loading) ? `<div class="photo-placeholder"><span class="msi size-24">image_search</span><p>${dict['detail-photos-soon']}</p></div>` : ''}
+
+    <div class="info-rows">
+      ${r.a ? `<div class="info-row"><span class="label"><span class="msi size-16">place</span> ${dict['detail-address']}</span><span class="value"><span>${escapeHtml(r.a)}</span><button class="copy-btn" data-copy="${escapeHtml(r.a)}" title="${copyTitle}" aria-label="${copyTitle}"><span class="msi">content_copy</span></button></span></div>` : ''}
+      ${r.rs ? `<div class="info-row"><span class="label"><span class="msi size-16">${reserveIcon(r.rs)}</span> ${dict['reserve-label']}</span><span class="value">${escapeHtml(reserveLabel(r.rs, lang))}</span></div>` : ''}
+      ${r.d ? `<div class="info-row"><span class="label"><span class="msi size-16">restaurant</span> ${dict['detail-dinner']}</span><span class="value">${escapeHtml(r.d)}</span></div>` : ''}
+      ${r.l ? `<div class="info-row"><span class="label"><span class="msi size-16">brunch_dining</span> ${dict['detail-lunch']}</span><span class="value">${escapeHtml(r.l)}</span></div>` : ''}
+      ${r.y ? `<div class="info-row"><span class="label"><span class="msi size-16">emoji_events</span> ${dict['detail-awards']}</span><span class="value">${escapeHtml(r.y)}</span></div>` : ''}
+      ${renderHoursWeek(r.bh, lang)}
+    </div>
 
     <div class="action-row">
       <a class="action-btn action-btn-primary" href="${gmaps}" target="_blank" rel="noopener">

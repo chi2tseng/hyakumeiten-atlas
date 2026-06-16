@@ -700,6 +700,19 @@ select.text-input { padding: 0 var(--md); }
 /* edge-to-edge strip inside the mobile sheet (its content has --xl padding) */
 .sheet-detail-content .detail-photos { margin-left: calc(var(--xl) * -1); margin-right: calc(var(--xl) * -1); padding-left: var(--xl); padding-right: var(--xl); }
 
+/* business hours — compact "today + open/closed" line + full-week grid */
+.detail-hours { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; font-size: 14px; margin: 2px 0 var(--sm); }
+.detail-hours > .msi { color: var(--steel); }
+.bh-status { font-weight: 700; }
+.bh-open { color: #1a7f37; }
+.bh-closed { color: #c5221f; }
+.bh-today { color: var(--ink); }
+.bh-week { display: grid; grid-template-columns: auto 1fr; gap: 3px 14px; }
+.bh-row { display: contents; }
+.bh-d { color: var(--steel); white-space: nowrap; }
+.bh-t { color: var(--ink); }
+.bh-row-today .bh-d, .bh-row-today .bh-t { font-weight: 700; }
+
 /* brand favicon inside the action buttons (Tabelog / Google Maps) */
 .brand-ico { width: 16px; height: 16px; border-radius: 3px; flex-shrink: 0; display: inline-block; vertical-align: middle; }
 
