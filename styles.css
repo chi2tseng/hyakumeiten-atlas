@@ -700,12 +700,11 @@ select.text-input { padding: 0 var(--md); }
 /* edge-to-edge strip inside the mobile sheet (its content has --xl padding) */
 .sheet-detail-content .detail-photos { margin-left: calc(var(--xl) * -1); margin-right: calc(var(--xl) * -1); padding-left: var(--xl); padding-right: var(--xl); }
 
-/* business hours — Google-Maps one-line status (icon · status · time) + full-week grid */
-.detail-hours { display: flex; align-items: center; gap: 6px; font-size: 14px; margin: 2px 0 var(--sm); white-space: nowrap; overflow: hidden; }
-.detail-hours > .msi { color: var(--steel); flex-shrink: 0; font-size: 18px; }
-.detail-hours .bh-line { display: inline-flex; align-items: baseline; gap: 6px; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+/* business hours — Google-Maps one-line status (status · time), plain inline text so the
+   CJK status and the Latin time share one baseline; + full-week grid below */
+.detail-hours { font-size: 14px; line-height: 1.5; margin: 2px 0 var(--sm); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .bh-status { font-weight: 700; }
-.bh-sep { color: var(--stone); }
+.bh-sep { color: var(--stone); margin: 0 5px; }
 .bh-detail { color: var(--ink); }
 .bh-open { color: #1a7f37; }
 .bh-closed { color: #c5221f; }

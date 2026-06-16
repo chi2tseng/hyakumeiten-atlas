@@ -139,7 +139,7 @@ function initMap() {
     zoomControl: true,
     scrollWheelZoom: false,       // replaced by the stepless smoothWheelZoom handler above
     smoothWheelZoom: true,
-    smoothSensitivity: 1.5,       // wheel sensitivity (higher = faster zoom per scroll)
+    smoothSensitivity: 3,         // wheel sensitivity (higher = faster zoom per scroll)
     zoomSnap: 0,                  // fractional zooms — smooth glide
     zoomDelta: 0.6,
     zoomAnimation: true,
@@ -607,29 +607,40 @@ function parseRanges(text) {
   });
 }
 // Google-Maps-style one-line status: 「營業中 · 營業至 21:00」 / 「休息中 · 營業開始 11:00」
+// next time the place opens: later today (if checkToday), else scan forward to the next day with hours
+function nextOpenLabel(bh, lang, checkToday) {
+  const L = bhLabels(lang), dl = dayLabels(lang);
+  const keys = ['月', '火', '水', '木', '金', '土', '日'];
+  const todayKey = jstWeekdayKey();
+  if (checkToday) {
+    const laterToday = parseRanges(bh[todayKey] || '').filter(r => r.a > jstNowMinutes()).sort((x, y) => x.a - y.a)[0];
+    if (laterToday) return `${L.openAt} ${laterToday.startStr}`;
+  }
+  const ti = keys.indexOf(todayKey);
+  for (let i = 1; i <= 7; i++) {
+    const k = keys[(ti + i) % 7];
+    if (bh[k] == null || isClosedDay(bh[k])) continue;
+    const rs = parseRanges(bh[k]);
+    if (rs.length) return `${L.openAt} ${dl[k]} ${rs.sort((x, y) => x.a - y.a)[0].startStr}`;
+  }
+  return '';
+}
+// no icon — Google Maps shows the status flush-left, aligned with the name/category lines
 function renderHoursTop(bh, lang) {
   if (!bh) return '';
   const text = bh[jstWeekdayKey()];
   if (text == null) return '';
   const L = bhLabels(lang);
-  // no icon — Google Maps shows the status flush-left, aligned with the name/category lines
-  if (isClosedDay(text)) {
-    return `<div class="detail-hours"><span class="bh-status bh-closed">${L.closedDay}</span></div>`;
-  }
+  const wrap = (cls, status, detail) =>
+    `<div class="detail-hours"><span class="bh-status ${cls}">${status}</span>${detail ? `<span class="bh-sep">·</span><span class="bh-detail">${detail}</span>` : ''}</div>`;
+  if (isClosedDay(text)) return wrap('bh-closed', L.closedDay, nextOpenLabel(bh, lang, false));  // closed all day → when it next opens
   const ranges = parseRanges(text);
-  if (!ranges.length) {  // hours present but unparseable → show the raw text
-    return `<div class="detail-hours"><span class="bh-detail">${escapeHtml(text)}</span></div>`;
-  }
+  if (!ranges.length) return `<div class="detail-hours"><span class="bh-detail">${escapeHtml(text)}</span></div>`;  // unparseable → raw
   const now = jstNowMinutes();
   let openR = null;
   for (const r of ranges) { let n = now; if (n < r.a && r.b > 1440) n += 1440; if (n >= r.a && n < r.b) { openR = r; break; } }
-  let cls, status, detail;
-  if (openR) { cls = 'bh-open'; status = L.open; detail = `${L.closeAt} ${openR.endStr}`; }
-  else {
-    const next = ranges.filter(r => r.a > now).sort((x, y) => x.a - y.a)[0];
-    cls = 'bh-closed'; status = L.closed; detail = next ? `${L.openAt} ${next.startStr}` : '';
-  }
-  return `<div class="detail-hours"><span class="bh-status ${cls}">${status}</span>${detail ? `<span class="bh-sep">·</span><span class="bh-detail">${detail}</span>` : ''}</div>`;
+  if (openR) return wrap('bh-open', L.open, `${L.closeAt} ${openR.endStr}`);               // open now → closes at
+  return wrap('bh-closed', L.closed, nextOpenLabel(bh, lang, true));                        // closed now → opens later today / next day
 }
 // full-week schedule as an info-row (below the photos)
 function renderHoursWeek(bh, lang) {
