@@ -595,7 +595,7 @@ select.text-input { padding: 0 var(--md); }
 
 .detail-name {
   font-family: var(--ff-editorial);
-  font-size: 32px;
+  font-size: 26px;
   font-weight: 500;
   letter-spacing: -0.5px;
   color: var(--ink);
@@ -663,6 +663,42 @@ select.text-input { padding: 0 var(--md); }
 .action-btn:hover { background: var(--cream-deeper); }
 .action-btn-primary { background: var(--canvas); color: var(--ink); border-color: var(--hairline-strong); }
 .action-btn-primary:hover { background: var(--surface); }
+
+/* ===== compact Google-Maps-style detail head + swipeable photo strip ===== */
+.detail-head .action-row { margin: var(--md) 0 0; }
+.detail-subline {
+  display: flex; align-items: center; flex-wrap: wrap; gap: 6px;
+  font-size: 14px; color: var(--steel);
+  margin-bottom: var(--sm);
+}
+.detail-subline .d-rating { color: var(--primary); font-weight: 600; display: inline-flex; align-items: center; gap: 3px; }
+.detail-subline .d-rating .msi { color: var(--sunshine-700); font-variation-settings: 'opsz' 16, 'wght' 500, 'FILL' 1, 'GRAD' 0; }
+.detail-subline .d-cat { display: inline-flex; align-items: center; gap: 4px; color: var(--ink); }
+.detail-subline .d-dot { color: var(--stone); }
+.detail-badge-row { display: flex; flex-wrap: wrap; gap: var(--xs); margin-bottom: var(--md); }
+.detail-photos {
+  display: flex; gap: 6px;
+  overflow-x: auto; overflow-y: hidden;
+  -webkit-overflow-scrolling: touch;
+  touch-action: pan-x;
+  scrollbar-width: none;
+  margin-bottom: var(--lg);
+  padding-bottom: 2px;
+}
+.detail-photos::-webkit-scrollbar { display: none; }
+.detail-photo {
+  flex: 0 0 auto;
+  width: 240px; height: 150px;
+  border-radius: var(--r-md);
+  overflow: hidden;
+  background: var(--surface);
+  cursor: zoom-in;
+  padding: 0; border: 0;
+}
+.detail-photo img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.detail-photos-loading { align-items: center; justify-content: center; height: 150px; }
+/* edge-to-edge strip inside the mobile sheet (its content has --xl padding) */
+.sheet-detail-content .detail-photos { margin-left: calc(var(--xl) * -1); margin-right: calc(var(--xl) * -1); padding-left: var(--xl); padding-right: var(--xl); }
 
 /* brand favicon inside the action buttons (Tabelog / Google Maps) */
 .brand-ico { width: 16px; height: 16px; border-radius: 3px; flex-shrink: 0; display: inline-block; vertical-align: middle; }
@@ -894,8 +930,8 @@ select.text-input { padding: 0 var(--md); }
     bottom: 0;
     left: 0;
     right: 0;
-    height: 34vh;                 /* peek (default) — shows several cards, scrollable */
-    max-height: 34vh;             /* this fixed flex element honours max-height reliably */
+    height: 50vh;                 /* bottom stop (default) — name/info + photo strip; map above */
+    max-height: 50vh;
     background: var(--canvas);
     border-right: 0;
     border-top: 1px solid var(--hairline);
@@ -994,17 +1030,16 @@ select.text-input { padding: 0 var(--md); }
      Partial sheet (peek/half): the content does NOT scroll on its own — a drag on it
      grows the sheet toward full (up) or shrinks it (down). Only once the sheet is FULL
      does the content scroll natively, and a pull-down at the very top collapses it. */
-  .sidebar:not(.mobile-open) .result-list,
-  .sidebar.detail-mode:not(.mobile-open) .sheet-detail-content {
-    overflow: hidden;
-    touch-action: none;
-  }
+  .sidebar:not(.mobile-open) .result-list { overflow: hidden; touch-action: none; }
+  /* detail at the bottom stop: no vertical scroll (drag resizes the sheet), but the
+     photo strip still pans horizontally → touch-action: pan-x */
+  .sidebar.detail-mode:not(.mobile-open) .sheet-detail-content { overflow: hidden; touch-action: pan-x; }
   .sidebar.mobile-open { overscroll-behavior: contain; }
   /* full + detail: only the detail content scrolls (not the sheet) → no double scroll */
   .sidebar.detail-mode.mobile-open { overflow: hidden; }
   .sidebar.detail-mode.mobile-open .sheet-detail-content {
     overflow-y: auto; -webkit-overflow-scrolling: touch;
-    touch-action: pan-y; overscroll-behavior: contain;
+    touch-action: auto; overscroll-behavior: contain;
   }
 
   /* floating buttons ALWAYS visible — JS rides their `bottom` just above the sheet's

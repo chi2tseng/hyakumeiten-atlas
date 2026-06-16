@@ -402,8 +402,6 @@ function applyFilters() {
     }
     return true;
   });
-  // stats
-  document.getElementById('stats-count').textContent = STATE.filtered.length.toLocaleString();
   renderList();
   renderMarkers();
 }
@@ -413,19 +411,6 @@ function renderList() {
   const list = document.getElementById('result-list');
   // viewport-scoped: only items currently visible on map
   const inView = STATE.filtered.filter(isInViewport);
-  // update stats: shown only when filter active OR viewport is sub-sampling
-  const total = STATE.filtered.length;
-  const visible = inView.length;
-  const statsRow = document.getElementById('stats-row');
-  const filterActive = isFilterActive();
-  const viewportClipping = visible < total;
-  if (statsRow) statsRow.style.display = (filterActive || viewportClipping) ? '' : 'none';
-  const statsEl = document.getElementById('stats-count');
-  if (statsEl) {
-    statsEl.textContent = visible === total
-      ? total.toLocaleString()
-      : `${visible.toLocaleString()} / ${total.toLocaleString()}`;
-  }
   // sort by rating, cap at 200 for DOM perf
   const top = inView
     .sort((a, b) => (parseFloat(b.r) || 0) - (parseFloat(a.r) || 0))
@@ -499,14 +484,14 @@ function openDetail(r) {
   STATE.openRest = r;
   const mobile = isMobileView();
   // pan to marker — on mobile, centre the pin in the map strip left visible above the sheet
-  flyToPin(r, mobile ? sheetHeights().half : 0);
+  flyToPin(r, mobile ? sheetHeights().peek : 0);
   // mobile: render the detail INSIDE the bottom sheet (map stays visible, Google-Maps style)
   // desktop: render into the left slide-in drawer
   const contentEl = document.getElementById(mobile ? 'sheet-detail-content' : 'drawer-content');
   renderDetail(r, !r._detailLoaded, contentEl);
   if (mobile) {
     document.getElementById('sidebar').classList.add('detail-mode');
-    setSheetState('half');                       // map stays visible above the sheet
+    setSheetState('peek');                        // bottom stop — name/info + photos show, map above
     const sd = document.getElementById('sheet-detail'); if (sd) sd.scrollTop = 0;
   } else {
     document.getElementById('detail-drawer').classList.add('open');
@@ -550,66 +535,57 @@ function renderDetail(r, loading, contentEl) {
       ? `<div class="detail-loading"><div class="spinner"></div></div>`
       : `<div class="review-body" style="color:var(--steel)">${dict['detail-no-reviews']}</div>`;
 
-  const cats = (r.c||'').split('/').filter(Boolean);
-
+  const cats = (r.c || '').split('/').filter(Boolean);
+  const firstCat = cats[0] || '';
+  const price = r.d || r.l || '';
   const photos = photosOf(r);
+  const copyTitle = dict['copy'] || '複製';
+
   contentEl.innerHTML = `
-    ${photos.length
-      ? `<div class="detail-hero" data-photo="0"><img src="${escapeHtml(photos[0])}" alt=""/></div>`
-      : (loading ? `<div class="detail-hero detail-hero-loading"><div class="spinner"></div></div>` : '')}
-
-    <div class="detail-name-row">
-      <div class="detail-name">${escapeHtml(r.n)}</div>
-      <button class="copy-btn" data-copy="${escapeHtml(r.n)}" title="${dict['copy'] || '複製'}" aria-label="${dict['copy'] || '複製'}"><span class="msi">content_copy</span></button>
-    </div>
-
-    <div class="detail-cat-row">
-      ${cats.map(c => `<span class="badge badge-cream"><span class="cat-ico">${categoryIcon(c)}</span>${escapeHtml(window.translateCat(c, STATE.lang))}</span>`).join('')}
-      ${r.w > 1 ? `<span class="badge badge-orange">${dict['detail-awards']} ${r.w} ${dict['detail-times']}</span>` : ''}
-      ${r.rs ? `<span class="badge badge-reserve-${r.rs}"><span class="cat-ico">${reserveIcon(r.rs)}</span>${reserveLabel(r.rs, STATE.lang)}</span>` : ''}
-    </div>
-
-    <div class="detail-meta-row">
-      ${r.r ? `<div><div class="detail-rating">★ ${escapeHtml(r.r)}</div></div>` : ''}
-      ${r.y ? `<div class="detail-rating-sub">${escapeHtml(r.y)}</div>` : ''}
-    </div>
-
-    <div class="info-rows">
-      ${r.a ? `<div class="info-row"><span class="label"><span class="msi size-16">place</span> ${dict['detail-address']}</span><span class="value"><span>${escapeHtml(r.a)}</span><button class="copy-btn" data-copy="${escapeHtml(r.a)}" title="${dict['copy'] || '複製'}" aria-label="${dict['copy'] || '複製'}"><span class="msi">content_copy</span></button></span></div>` : ''}
-      ${r.rs ? `<div class="info-row"><span class="label"><span class="msi size-16">${reserveIcon(r.rs)}</span> ${dict['reserve-label']}</span><span class="value">${escapeHtml(reserveLabel(r.rs, STATE.lang))}</span></div>` : ''}
-      ${r.d ? `<div class="info-row"><span class="label"><span class="msi size-16">restaurant</span> ${dict['detail-dinner']}</span><span class="value">${escapeHtml(r.d)}</span></div>` : ''}
-      ${r.l ? `<div class="info-row"><span class="label"><span class="msi size-16">brunch_dining</span> ${dict['detail-lunch']}</span><span class="value">${escapeHtml(r.l)}</span></div>` : ''}
-      ${r.y ? `<div class="info-row"><span class="label"><span class="msi size-16">emoji_events</span> ${dict['detail-awards']}</span><span class="value">${escapeHtml(r.y)}</span></div>` : ''}
-    </div>
-
-    <div class="action-row">
-      <a class="action-btn action-btn-primary" href="${gmaps}" target="_blank" rel="noopener">
-        <img class="brand-ico" src="https://www.google.com/s2/favicons?domain=maps.google.com&sz=64" alt="" loading="lazy" />
-        ${dict['detail-gmap']}
-      </a>
-      <a class="action-btn" href="${escapeHtml(r.u)}" target="_blank" rel="noopener">
-        <img class="brand-ico" src="https://www.google.com/s2/favicons?domain=tabelog.com&sz=64" alt="" loading="lazy" />
-        ${dict['detail-tabelog']}
-      </a>
-    </div>
-
-    ${(photos.length || loading) ? `
-      <div class="section-title"><span class="msi size-16">photo_library</span> ${dict['detail-photos']}${photos.length ? ` <span class="count">${photos.length}</span>` : ''}</div>
-      ${photos.length ? `
-        <div class="photo-grid">
-          ${photos.slice(0, 12).map((p, i) => `<button class="photo-tile" data-photo="${i}"><img loading="lazy" src="${escapeHtml(p)}" alt=""/></button>`).join('')}
-        </div>
-      ` : (loading ? `<div class="detail-loading"><div class="spinner"></div></div>` : '')}
-    ` : `
-      <div class="section-title"><span class="msi size-16">photo_library</span> ${dict['detail-photos']}</div>
-      <div class="photo-placeholder">
-        <span class="msi size-24">image_search</span>
-        <p>${dict['detail-photos-soon']}</p>
+    <div class="detail-head">
+      <div class="detail-name-row">
+        <div class="detail-name">${escapeHtml(r.n)}</div>
+        <button class="copy-btn" data-copy="${escapeHtml(r.n)}" title="${copyTitle}" aria-label="${copyTitle}"><span class="msi">content_copy</span></button>
       </div>
-    `}
+      <div class="detail-subline">
+        ${r.r ? `<span class="d-rating"><span class="msi size-16 filled">star</span>${escapeHtml(r.r)}</span>` : ''}
+        ${firstCat ? `${r.r ? '<span class="d-dot">·</span>' : ''}<span class="d-cat"><span class="cat-ico">${categoryIcon(firstCat)}</span>${escapeHtml(window.translateCat(firstCat, lang))}</span>` : ''}
+        ${price ? `<span class="d-dot">·</span><span class="d-price">${escapeHtml(price)}</span>` : ''}
+      </div>
+      ${(r.w > 1 || r.rs) ? `<div class="detail-badge-row">
+        ${r.w > 1 ? `<span class="badge badge-orange">${dict['detail-awards']} ${r.w} ${dict['detail-times']}</span>` : ''}
+        ${r.rs ? `<span class="badge badge-reserve-${r.rs}"><span class="cat-ico">${reserveIcon(r.rs)}</span>${reserveLabel(r.rs, lang)}</span>` : ''}
+      </div>` : ''}
+      <div class="action-row">
+        <a class="action-btn action-btn-primary" href="${gmaps}" target="_blank" rel="noopener">
+          <img class="brand-ico" src="https://www.google.com/s2/favicons?domain=maps.google.com&sz=64" alt="" loading="lazy" />
+          ${dict['detail-gmap']}
+        </a>
+        <a class="action-btn" href="${escapeHtml(r.u)}" target="_blank" rel="noopener">
+          <img class="brand-ico" src="https://www.google.com/s2/favicons?domain=tabelog.com&sz=64" alt="" loading="lazy" />
+          ${dict['detail-tabelog']}
+        </a>
+      </div>
+    </div>
 
-    <div class="section-title"><span class="msi size-16">reviews</span> ${dict['detail-reviews']}</div>
-    ${reviewsHtml}
+    ${photos.length
+      ? `<div class="detail-photos">${photos.slice(0, 20).map((p, i) => `<button class="detail-photo" data-photo="${i}"><img loading="lazy" src="${escapeHtml(p)}" alt=""/></button>`).join('')}</div>`
+      : (loading ? `<div class="detail-photos detail-photos-loading"><div class="spinner"></div></div>` : '')}
+
+    <div class="detail-body">
+      <div class="info-rows">
+        ${r.a ? `<div class="info-row"><span class="label"><span class="msi size-16">place</span> ${dict['detail-address']}</span><span class="value"><span>${escapeHtml(r.a)}</span><button class="copy-btn" data-copy="${escapeHtml(r.a)}" title="${copyTitle}" aria-label="${copyTitle}"><span class="msi">content_copy</span></button></span></div>` : ''}
+        ${r.rs ? `<div class="info-row"><span class="label"><span class="msi size-16">${reserveIcon(r.rs)}</span> ${dict['reserve-label']}</span><span class="value">${escapeHtml(reserveLabel(r.rs, lang))}</span></div>` : ''}
+        ${r.d ? `<div class="info-row"><span class="label"><span class="msi size-16">restaurant</span> ${dict['detail-dinner']}</span><span class="value">${escapeHtml(r.d)}</span></div>` : ''}
+        ${r.l ? `<div class="info-row"><span class="label"><span class="msi size-16">brunch_dining</span> ${dict['detail-lunch']}</span><span class="value">${escapeHtml(r.l)}</span></div>` : ''}
+        ${r.y ? `<div class="info-row"><span class="label"><span class="msi size-16">emoji_events</span> ${dict['detail-awards']}</span><span class="value">${escapeHtml(r.y)}</span></div>` : ''}
+      </div>
+
+      ${(!photos.length && !loading) ? `<div class="photo-placeholder"><span class="msi size-24">image_search</span><p>${dict['detail-photos-soon']}</p></div>` : ''}
+
+      <div class="section-title"><span class="msi size-16">reviews</span> ${dict['detail-reviews']}</div>
+      ${reviewsHtml}
+    </div>
   `;
 }
 
@@ -768,12 +744,13 @@ function setupSheetGrip() {
 }
 
 // ===== Mobile bottom sheet — 4 snap heights, draggable handle =====
-// states: 'collapsed' (88px) · 'peek' (34vh, default) · 'half' (62vh, detail) · 'full' (86vh)
+// two stops: 'peek' (50vh, bottom — default, shows name/info + photo strip) · 'full' (top, under nav)
 function navHeight() { return (document.querySelector('.top-nav') || {}).offsetHeight || 56; }
 function sheetHeights() {
   const vh = window.innerHeight;
-  // 'full' reaches right under the top nav — no leftover strip of map
-  return { collapsed: 88, peek: Math.round(vh * 0.34), half: Math.round(vh * 0.62), full: vh - navHeight() };
+  // two stops only: 'peek' (bottom — shows name/info + photo strip) and 'full' (top, under nav)
+  const peek = Math.round(vh * 0.5);
+  return { peek, full: vh - navHeight() };
 }
 // keep the floating buttons (filter FAB + recenter) just above the sheet's top edge so
 // they stay visible while there's a map to use; once the sheet is essentially full-screen
@@ -833,11 +810,8 @@ function setupMobileSheet() {
     positionSheetButtons(h);                           // floating buttons ride the finger
   };
   const snapToNearest = (h) => {
-    const H = sheetHeights();
-    const order = [['collapsed', H.collapsed], ['peek', H.peek], ['half', H.half], ['full', H.full]];
-    let best = order[0];
-    for (const s of order) if (Math.abs(s[1] - h) < Math.abs(best[1] - h)) best = s;
-    setSheetState(best[0]);                             // clears inline + animates to the class height
+    const H = sheetHeights();                            // two stops only: peek (bottom) / full (top)
+    setSheetState(Math.abs(h - H.full) < Math.abs(h - H.peek) ? 'full' : 'peek');
   };
   // the element that actually scrolls in the current state
   const activeScroller = () => {
@@ -875,7 +849,7 @@ function setupMobileSheet() {
     }
     if (mode === 'resize') {
       if (ev.cancelable) ev.preventDefault();
-      applyHeight(Math.max(H.collapsed, Math.min(H.full, sH + dy)));
+      applyHeight(Math.max(H.peek, Math.min(H.full, sH + dy)));   // peek is the floor (bottom stop)
     }
     // mode 'native' → let the browser scroll the content (momentum preserved)
   };
