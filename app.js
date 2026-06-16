@@ -2,7 +2,7 @@
 'use strict';
 
 // bump when data/ changes so browsers don't serve stale index/shards (cache-bust)
-const DATA_VERSION = '20260616k';
+const DATA_VERSION = '20260616p';
 
 // state
 const STATE = {
