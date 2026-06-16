@@ -337,13 +337,17 @@ function setupListeners() {
   // mobile bottom-sheet controls
   const fab = document.getElementById('mobile-filter-fab');
   const closeBtn = document.getElementById('sheet-close-mobile');
-  if (fab) fab.addEventListener('click', () => setSheetState('full'));   // open filters
+  // filter FAB: leave any open detail, show the filters (full sheet)
+  if (fab) fab.addEventListener('click', () => {
+    document.getElementById('sidebar').classList.remove('detail-mode');
+    setSheetState('full');
+  });
   if (closeBtn) closeBtn.addEventListener('click', () => setSheetState('peek'));
-  // tapping a card collapses the sheet to its minimum so the detail + map show
-  document.getElementById('result-list').addEventListener('click', (e) => {
-    if (window.matchMedia('(max-width: 767px)').matches && e.target.closest('.rest-card')) {
-      setSheetState('collapsed');
-    }
+  // mobile detail back button → return to the list view in the sheet
+  const sdBack = document.getElementById('sheet-detail-back');
+  if (sdBack) sdBack.addEventListener('click', () => {
+    document.getElementById('sidebar').classList.remove('detail-mode');
+    setSheetState('peek');
   });
 }
 
@@ -473,27 +477,39 @@ async function loadDetail(r) {
   return r;
 }
 
+function isMobileView() { return window.matchMedia('(max-width: 767px)').matches; }
+
 function openDetail(r) {
   STATE.openRest = r;
-  const drawer = document.getElementById('detail-drawer');
   // pan to marker
   if (typeof r.lat === 'number' && typeof r.lng === 'number') {
     STATE.map.flyTo([r.lat, r.lng], Math.max(STATE.map.getZoom(), 14), { duration: 0.6 });
   }
-  renderDetail(r, !r._detailLoaded);
-  drawer.classList.add('open');
-  const dc = document.getElementById('drawer-content');
-  if (dc) dc.scrollTop = 0;
+  const mobile = isMobileView();
+  // mobile: render the detail INSIDE the bottom sheet (map stays visible, Google-Maps style)
+  // desktop: render into the left slide-in drawer
+  const contentEl = document.getElementById(mobile ? 'sheet-detail-content' : 'drawer-content');
+  renderDetail(r, !r._detailLoaded, contentEl);
+  if (mobile) {
+    document.getElementById('sidebar').classList.add('detail-mode');
+    setSheetState('half');                       // map stays visible above the sheet
+    const sd = document.getElementById('sheet-detail'); if (sd) sd.scrollTop = 0;
+  } else {
+    document.getElementById('detail-drawer').classList.add('open');
+    const dc = document.getElementById('drawer-content'); if (dc) dc.scrollTop = 0;
+  }
   // lazy-fetch heavy detail (reviews + gallery) then re-render if still open
   if (!r._detailLoaded) {
-    loadDetail(r).then(() => { if (STATE.openRest === r) renderDetail(r, false); });
+    loadDetail(r).then(() => { if (STATE.openRest === r) renderDetail(r, false, contentEl); });
   }
 }
 
-function renderDetail(r, loading) {
+function renderDetail(r, loading, contentEl) {
+  contentEl = contentEl || document.getElementById('drawer-content');
   const dict = window.I18N[STATE.lang];
   const mapsQuery = encodeURIComponent(`${r.n} ${r.a || r.p || ''}`);
   const gmaps = `https://www.google.com/maps/search/?api=1&query=${mapsQuery}`;
+  const heroSrc = r.cv || (r.ph && r.ph[0]) || '';
 
   const lang = STATE.lang;
   const reviewsHtml = (r.rv && r.rv.length)
@@ -523,7 +539,11 @@ function renderDetail(r, loading) {
 
   const cats = (r.c||'').split('/').filter(Boolean);
 
-  document.getElementById('drawer-content').innerHTML = `
+  contentEl.innerHTML = `
+    ${heroSrc
+      ? `<div class="detail-hero"><img src="${escapeHtml(heroSrc)}" alt=""/></div>`
+      : (loading ? `<div class="detail-hero detail-hero-loading"><div class="spinner"></div></div>` : '')}
+
     <div class="detail-name-row">
       <div class="detail-name">${escapeHtml(r.n)}</div>
       <button class="copy-btn" data-copy="${escapeHtml(r.n)}" title="${dict['copy'] || '複製'}" aria-label="${dict['copy'] || '複製'}"><span class="msi">content_copy</span></button>
@@ -560,7 +580,6 @@ function renderDetail(r, loading) {
     </div>
 
     ${(r.cv || (r.ph && r.ph.length) || loading) ? `
-      ${r.cv ? `<div class="photo-cover"><img loading="lazy" src="${escapeHtml(r.cv)}" alt=""/></div>` : ''}
       <div class="section-title"><span class="msi size-16">photo_library</span> ${dict['detail-photos']}${r.ph ? ` <span class="count">${r.ph.length}</span>` : ''}</div>
       ${r.ph && r.ph.length ? `
         <div class="photo-grid">
@@ -582,6 +601,8 @@ function renderDetail(r, loading) {
 
 function closeDrawer() {
   document.getElementById('detail-drawer').classList.remove('open');
+  const sb = document.getElementById('sidebar');
+  if (sb) sb.classList.remove('detail-mode');   // mobile: back to the list view in the sheet
 }
 
 // ===== Geolocation =====
@@ -670,22 +691,34 @@ function setupSheetGrip() {
   });
 }
 
-// ===== Mobile bottom sheet — 3 snap heights, draggable handle =====
-// states: 'collapsed' (88px) · 'peek' (34vh, default) · 'full' (86vh)
+// ===== Mobile bottom sheet — 4 snap heights, draggable handle =====
+// states: 'collapsed' (88px) · 'peek' (34vh, default) · 'half' (62vh, detail) · 'full' (86vh)
 function sheetHeights() {
   const vh = window.innerHeight;
-  return { collapsed: 88, peek: Math.round(vh * 0.34), full: Math.round(vh * 0.86) };
+  return { collapsed: 88, peek: Math.round(vh * 0.34), half: Math.round(vh * 0.62), full: Math.round(vh * 0.86) };
+}
+// keep the floating buttons (filter FAB + recenter) just above the sheet's top edge so
+// they are ALWAYS visible — never covered by the sheet. Pass a live height during a drag.
+function positionSheetButtons(heightPx) {
+  if (!isMobileView()) return;
+  const h = (heightPx != null) ? heightPx : sheetHeights()[document.getElementById('sidebar').dataset.sheet || 'peek'];
+  const bottom = Math.min(h + 12, window.innerHeight - 120) + 'px';   // ride up, but stay below the top nav
+  for (const id of ['mobile-filter-fab', 'recenter-btn']) {
+    const el = document.getElementById(id);
+    if (el) el.style.bottom = bottom;
+  }
 }
 function setSheetState(s) {
   const sidebar = document.getElementById('sidebar');
   if (!sidebar) return;
   sidebar.style.height = '';
   sidebar.style.maxHeight = '';                                     // clear drag inline; class governs height
-  sidebar.classList.remove('sheet-collapsed', 'mobile-open');
+  sidebar.classList.remove('sheet-collapsed', 'sheet-half', 'mobile-open');
   if (s === 'collapsed') sidebar.classList.add('sheet-collapsed');
+  else if (s === 'half') sidebar.classList.add('sheet-half');
   else if (s === 'full') sidebar.classList.add('mobile-open');
   sidebar.dataset.sheet = s;       // 'peek' has no class
-  // FAB + recenter fade is handled purely by the .sidebar.mobile-open ~ … CSS rule
+  positionSheetButtons();          // buttons ride to just above the new sheet height
 }
 function setupMobileSheet() {
   const sidebar = document.getElementById('sidebar');
@@ -694,8 +727,9 @@ function setupMobileSheet() {
   const isMobile = () => window.matchMedia('(max-width: 767px)').matches;
   const cur = () => sidebar.dataset.sheet || 'peek';
   sidebar.dataset.sheet = 'peek';
-  const UP   = { collapsed: 'peek', peek: 'full', full: 'full' };           // swipe up = expand
-  const DOWN = { full: 'peek', peek: 'collapsed', collapsed: 'collapsed' }; // swipe down = shrink
+  positionSheetButtons();
+  const UP   = { collapsed: 'peek', peek: 'half', half: 'full', full: 'full' };       // swipe up = expand
+  const DOWN = { full: 'half', half: 'peek', peek: 'collapsed', collapsed: 'collapsed' }; // swipe down = shrink
 
   let startY = null, startH = 0, dragging = false, moved = false, pid = null;
 
@@ -715,6 +749,7 @@ function setupMobileSheet() {
     const h = Math.max(H.collapsed, Math.min(H.full, startH + dy));
     sidebar.style.height = h + 'px';                   // live-follow (both, since max-height is the cap)
     sidebar.style.maxHeight = h + 'px';
+    positionSheetButtons(h);                           // buttons follow the finger too
     e.preventDefault();
   });
   const end = (e) => {

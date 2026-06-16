@@ -365,7 +365,7 @@ select.text-input { padding: 0 var(--md); }
 }
 .mobile-filter-fab:active { transform: scale(0.92); }
 .mobile-filter-fab .msi { font-size: 24px; }
-.mobile-filter-fab, .recenter-btn { transition: transform 200ms ease, opacity 220ms ease; }
+.mobile-filter-fab, .recenter-btn { transition: transform 200ms ease, opacity 220ms ease, bottom 320ms cubic-bezier(0.22,1,0.36,1); }
 
 /* ===== Result list ===== */
 .result-list {
@@ -547,6 +547,34 @@ select.text-input { padding: 0 var(--md); }
 .drawer-back:hover { background: var(--surface); }
 .drawer-back svg { width: 16px; height: 16px; }
 .drawer-content { padding: var(--xl); }
+
+/* sheet detail (mobile: the selected restaurant rendered INSIDE the bottom sheet) */
+.sheet-detail { display: none; flex: 1 1 auto; min-height: 0; flex-direction: column; }
+.sheet-detail-back {
+  display: inline-flex; align-items: center; gap: 4px;
+  flex-shrink: 0;
+  font-size: 14px; font-weight: 500; color: var(--ink);
+  background: var(--canvas);
+  border: 0; border-bottom: 1px solid var(--hairline-soft);
+  padding: 10px var(--xl);
+}
+.sheet-detail-back .msi { font-size: 18px; }
+.sheet-detail-content {
+  flex: 1 1 auto; min-height: 0;
+  overflow-y: auto; -webkit-overflow-scrolling: touch;
+  padding: var(--xl);
+}
+
+/* hero preview image at the very TOP of a restaurant detail (drawer + sheet) */
+.detail-hero {
+  margin: calc(var(--xl) * -1) calc(var(--xl) * -1) var(--md);
+  height: 220px;
+  background: var(--surface);
+  overflow: hidden;
+  position: relative;
+}
+.detail-hero img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.detail-hero-loading { display: flex; align-items: center; justify-content: center; }
 
 .detail-name {
   font-family: var(--ff-editorial);
@@ -864,6 +892,7 @@ select.text-input { padding: 0 var(--md); }
     overflow: hidden;
   }
   .sidebar.sheet-collapsed { height: 88px; max-height: 88px; }    /* just handle + 1 row */
+  .sidebar.sheet-half { height: 62vh; max-height: 62vh; }          /* detail view — map visible above */
   .sidebar.mobile-open { height: 86vh; max-height: 86vh; }         /* full */
   .sidebar.dragging { transition: none; }                          /* follow the finger live */
 
@@ -886,6 +915,15 @@ select.text-input { padding: 0 var(--md); }
   .sidebar:not(.mobile-open) .filter-panel,
   .sidebar:not(.mobile-open) .stats-row { display: none; }
   .sidebar.sheet-up .filter-panel { max-height: 800px; opacity: 1; pointer-events: auto; padding: var(--xl); border-bottom-width: 1px; }
+  /* when filters are open (full sheet), the panel itself scrolls so EVERY option is
+     reachable — fixes the filter being cut off on shorter phones */
+  .sidebar.mobile-open .filter-panel {
+    flex: 1 1 auto;
+    min-height: 0;
+    max-height: none;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+  }
 
   /* list always scrolls within whatever height the sheet currently has.
      min-height:0 is REQUIRED so the flex child can shrink and become scrollable. */
@@ -901,32 +939,20 @@ select.text-input { padding: 0 var(--md); }
   .filter-header { margin-bottom: var(--sm); }
   .sheet-close-mobile { display: inline-flex; }
 
-  /* drawer (detail panel) — comes from bottom on mobile, full screen */
-  .drawer {
-    position: fixed;
-    inset: auto 0 0 0;
-    width: 100%;
-    height: 92vh;
-    border-right: 0;
-    border-radius: var(--r-lg) var(--r-lg) 0 0;
-    transform: translateY(100%);
-    box-shadow: rgba(0,0,0,0.12) 0 -4px 16px;
-  }
-  .drawer.open { transform: translateY(0); }
+  /* mobile shows the detail INSIDE the sheet (.sidebar.detail-mode) — never the drawer */
+  .drawer { display: none; }
 
-  /* mobile-only floating filter button */
-  .mobile-filter-fab { display: inline-flex; bottom: 112px; left: 16px; }
+  /* detail-mode: hide the list-mode chrome, show the in-sheet detail */
+  .sidebar.detail-mode .filter-panel,
+  .sidebar.detail-mode .stats-row,
+  .sidebar.detail-mode .sheet-grip,
+  .sidebar.detail-mode .result-list { display: none; }
+  .sidebar.detail-mode .sheet-detail { display: flex; }
 
-  /* recenter button stays visible bottom-right */
-  .recenter-btn { bottom: 112px; right: 16px; }
-
-  /* when the sheet is fully open the floating buttons fade away (they'd just
-     hover over the list); drag-time proportional fade is handled in JS */
-  .sidebar.mobile-open ~ .map-section .mobile-filter-fab,
-  .sidebar.mobile-open ~ .map-section .recenter-btn {
-    opacity: 0;
-    pointer-events: none;
-  }
+  /* floating buttons ALWAYS visible — JS rides their `bottom` just above the sheet's
+     top edge so the sheet never covers them */
+  .mobile-filter-fab { display: inline-flex; left: 16px; bottom: 112px; }
+  .recenter-btn { right: 16px; bottom: 112px; }
 }
 
 /* ===== Loading ===== */
