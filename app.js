@@ -996,25 +996,27 @@ function setupMobileSheet() {
   // Google-Maps nested scroll: while the sheet isn't full, dragging the list/detail
   // GROWS the sheet (up) or SHRINKS it (down); once full, the content scrolls natively
   // and only a pull-down at the very TOP collapses the sheet again.
-  let sY = 0, sH = 0, sTop = 0, mode = null, decided = false, onHandle = false;
-  const begin = (clientY, target) => {
+  let sY = 0, sX = 0, sH = 0, sTop = 0, mode = null, decided = false, onHandle = false;
+  const begin = (clientY, clientX, target) => {
     if (!isMobile()) { mode = 'disabled'; return; }
-    sY = clientY;
+    sY = clientY; sX = clientX;
     sH = sidebar.getBoundingClientRect().height;
     onHandle = !!(handle && (target === handle || handle.contains(target)));
     const sc = activeScroller();
     sTop = sc ? sc.scrollTop : 0;
     mode = null; decided = false;
   };
-  const drag = (clientY, ev) => {
+  const drag = (clientY, clientX, ev) => {
     if (mode === 'disabled' || !isMobile()) return;
     const dy = sY - clientY;                            // up = positive
+    const dx = clientX - sX;                            // horizontal delta
     const H = sheetHeights();
     const isFull = sH >= H.full - EPS;
     if (!decided) {
-      if (Math.abs(dy) < 4) return;
+      if (Math.abs(dy) < 4 && Math.abs(dx) < 4) return;               // wait for a real move
       decided = true;
-      if (onHandle)      mode = 'resize';                              // handle always resizes
+      if (!onHandle && Math.abs(dx) > Math.abs(dy)) mode = 'native';  // horizontal swipe (photo strip) → scroll, NEVER resize
+      else if (onHandle) mode = 'resize';                             // handle always resizes
       else if (!isFull)  mode = 'resize';                             // partial: drag grows/shrinks sheet
       else if (dy > 0)   mode = 'native';                             // full + up: scroll the content
       else               mode = (sTop <= 0) ? 'resize' : 'native';    // full + down: collapse only at top
@@ -1039,8 +1041,8 @@ function setupMobileSheet() {
     mode = null; decided = false; onHandle = false;
   };
 
-  sidebar.addEventListener('touchstart', (e) => { if (e.touches.length === 1) begin(e.touches[0].clientY, e.target); }, { passive: true });
-  sidebar.addEventListener('touchmove',  (e) => { if (e.touches.length === 1) drag(e.touches[0].clientY, e); }, { passive: false });
+  sidebar.addEventListener('touchstart', (e) => { if (e.touches.length === 1) begin(e.touches[0].clientY, e.touches[0].clientX, e.target); }, { passive: true });
+  sidebar.addEventListener('touchmove',  (e) => { if (e.touches.length === 1) drag(e.touches[0].clientY, e.touches[0].clientX, e); }, { passive: false });
   sidebar.addEventListener('touchend', finish);
   sidebar.addEventListener('touchcancel', finish);
 }
