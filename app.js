@@ -612,11 +612,11 @@ function renderDetail(r, loading, contentEl) {
         ${firstCat ? `${r.r ? '<span class="d-dot">·</span>' : ''}<span class="d-cat"><span class="cat-ico">${categoryIcon(firstCat)}</span>${escapeHtml(window.translateCat(firstCat, lang))}</span>` : ''}
         ${price ? `<span class="d-dot">·</span><span class="d-price">${escapeHtml(price)}</span>` : ''}
       </div>
+      ${renderHoursTop(r.bh, lang)}
       ${(r.w > 1 || r.rs) ? `<div class="detail-badge-row">
         ${r.w > 1 ? `<span class="badge badge-orange">${dict['detail-awards']} ${r.w} ${dict['detail-times']}</span>` : ''}
         ${r.rs ? `<span class="badge badge-reserve-${r.rs}"><span class="cat-ico">${reserveIcon(r.rs)}</span>${reserveLabel(r.rs, lang)}</span>` : ''}
       </div>` : ''}
-      ${renderHoursTop(r.bh, lang)}
     </div>
 
     ${photos.length
