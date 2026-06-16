@@ -893,7 +893,8 @@ select.text-input { padding: 0 var(--md); }
   }
   .sidebar.sheet-collapsed { height: 88px; max-height: 88px; }    /* just handle + 1 row */
   .sidebar.sheet-half { height: 62vh; max-height: 62vh; }          /* detail view — map visible above */
-  .sidebar.mobile-open { height: 86vh; max-height: 86vh; }         /* full */
+  /* full reaches right under the top nav — no leftover strip of map */
+  .sidebar.mobile-open { height: calc(100vh - var(--nav-h)); max-height: calc(100vh - var(--nav-h)); }
   .sidebar.dragging { transition: none; }                          /* follow the finger live */
 
   /* big, obvious grab handle — generous touch target */

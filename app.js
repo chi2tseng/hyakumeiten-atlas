@@ -481,11 +481,9 @@ function isMobileView() { return window.matchMedia('(max-width: 767px)').matches
 
 function openDetail(r) {
   STATE.openRest = r;
-  // pan to marker
-  if (typeof r.lat === 'number' && typeof r.lng === 'number') {
-    STATE.map.flyTo([r.lat, r.lng], Math.max(STATE.map.getZoom(), 14), { duration: 0.6 });
-  }
   const mobile = isMobileView();
+  // pan to marker — on mobile, centre the pin in the map strip left visible above the sheet
+  flyToPin(r, mobile ? sheetHeights().half : 0);
   // mobile: render the detail INSIDE the bottom sheet (map stays visible, Google-Maps style)
   // desktop: render into the left slide-in drawer
   const contentEl = document.getElementById(mobile ? 'sheet-detail-content' : 'drawer-content');
@@ -693,19 +691,40 @@ function setupSheetGrip() {
 
 // ===== Mobile bottom sheet — 4 snap heights, draggable handle =====
 // states: 'collapsed' (88px) · 'peek' (34vh, default) · 'half' (62vh, detail) · 'full' (86vh)
+function navHeight() { return (document.querySelector('.top-nav') || {}).offsetHeight || 56; }
 function sheetHeights() {
   const vh = window.innerHeight;
-  return { collapsed: 88, peek: Math.round(vh * 0.34), half: Math.round(vh * 0.62), full: Math.round(vh * 0.86) };
+  // 'full' reaches right under the top nav — no leftover strip of map
+  return { collapsed: 88, peek: Math.round(vh * 0.34), half: Math.round(vh * 0.62), full: vh - navHeight() };
 }
 // keep the floating buttons (filter FAB + recenter) just above the sheet's top edge so
-// they are ALWAYS visible — never covered by the sheet. Pass a live height during a drag.
+// they stay visible while there's a map to use; once the sheet is essentially full-screen
+// (no map) they fade out. Pass a live height during a drag.
 function positionSheetButtons(heightPx) {
   if (!isMobileView()) return;
   const h = (heightPx != null) ? heightPx : sheetHeights()[document.getElementById('sidebar').dataset.sheet || 'peek'];
-  const bottom = Math.min(h + 12, window.innerHeight - 120) + 'px';   // ride up, but stay below the top nav
+  const maxBottom = window.innerHeight - navHeight() - 64;   // highest the buttons may ride
+  const hide = h > maxBottom;                                // sheet near full → no map → hide
+  const bottom = Math.min(h + 12, maxBottom) + 'px';
   for (const id of ['mobile-filter-fab', 'recenter-btn']) {
     const el = document.getElementById(id);
-    if (el) el.style.bottom = bottom;
+    if (!el) continue;
+    el.style.bottom = bottom;
+    el.style.opacity = hide ? '0' : '1';
+    el.style.pointerEvents = hide ? 'none' : 'auto';
+  }
+}
+// fly to a restaurant, centering its pin in the VISIBLE map area above the bottom sheet
+function flyToPin(r, sheetPx) {
+  if (typeof r.lat !== 'number' || typeof r.lng !== 'number') return;
+  const map = STATE.map;
+  const z = Math.max(map.getZoom(), 14);
+  if (sheetPx && isMobileView()) {
+    // push the geometric center down by half the sheet so the pin lands in the open strip
+    const pt = map.project([r.lat, r.lng], z).add([0, sheetPx / 2]);
+    map.flyTo(map.unproject(pt, z), z, { duration: 0.6 });
+  } else {
+    map.flyTo([r.lat, r.lng], z, { duration: 0.6 });
   }
 }
 function setSheetState(s) {
