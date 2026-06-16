@@ -8,3 +8,5 @@ data/restaurants.json
 data/_tx/
 data/_txd/
 data/_hours.json
+data/_photos.json
+probe-photos.js
