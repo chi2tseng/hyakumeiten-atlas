@@ -916,14 +916,25 @@ select.text-input { padding: 0 var(--md); }
   .sidebar:not(.mobile-open) .filter-panel,
   .sidebar:not(.mobile-open) .stats-row { display: none; }
   .sidebar.sheet-up .filter-panel { max-height: 800px; opacity: 1; pointer-events: auto; padding: var(--xl); border-bottom-width: 1px; }
-  /* when filters are open (full sheet), the panel itself scrolls so EVERY option is
-     reachable — fixes the filter being cut off on shorter phones */
-  .sidebar.mobile-open .filter-panel {
-    flex: 1 1 auto;
-    min-height: 0;
-    max-height: none;
+  /* full sheet = filters open: the COMPLETE filters sit at the top (natural height,
+     nothing cramped), the list flows below, and the whole sheet scrolls as one column.
+     The grab handle stays pinned at the top so the sheet is still draggable. */
+  .sidebar.mobile-open {
     overflow-y: auto;
     -webkit-overflow-scrolling: touch;
+  }
+  .sidebar.mobile-open .sheet-handle {
+    position: sticky; top: 0; z-index: 6;
+    background: var(--canvas);
+  }
+  .sidebar.mobile-open .filter-panel {
+    flex: 0 0 auto;
+    max-height: none;
+    overflow: visible;          /* show every option — no tiny internal scroll box */
+  }
+  .sidebar.mobile-open .result-list {
+    flex: 0 0 auto;
+    overflow: visible;          /* the list flows below the filters in the shared scroll */
   }
 
   /* list always scrolls within whatever height the sheet currently has.
