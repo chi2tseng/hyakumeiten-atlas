@@ -1,6 +1,9 @@
 // ===== Hyakumeiten Atlas — Main App =====
 'use strict';
 
+// bump when data/ changes so browsers don't serve stale index/shards (cache-bust)
+const DATA_VERSION = '20260616k';
+
 // state
 const STATE = {
   lang: 'zh',
@@ -159,7 +162,7 @@ async function loadData() {
   const list = document.getElementById('result-list');
   list.innerHTML = `<div class="loading"><div class="spinner"></div><div>${window.I18N[STATE.lang].loading}</div></div>`;
   try {
-    const res = await fetch('./data/index.json');
+    const res = await fetch(`./data/index.json?v=${DATA_VERSION}`);
     if (!res.ok) throw new Error(res.statusText);
     STATE.data = await res.json();
   } catch (err) {
@@ -465,7 +468,7 @@ async function loadDetail(r) {
   try {
     let shard = DETAIL_CACHE.get(key);
     if (!shard) {
-      const res = await fetch(`./data/d/${key}.json`);
+      const res = await fetch(`./data/d/${key}.json?v=${DATA_VERSION}`);
       shard = res.ok ? await res.json() : {};
       DETAIL_CACHE.set(key, shard);
     }
@@ -808,11 +811,11 @@ function setupSheetGrip() {
 function navHeight() { return (document.querySelector('.top-nav') || {}).offsetHeight || 56; }
 function sheetHeights() {
   const vh = window.innerHeight;
-  // two stops: 'peek' (bottom) and 'full' (top, under nav). The bottom stop is LOW for the
-  // list (map stays visible) but taller in a restaurant detail (so info + photos show).
+  // stops: 'collapsed' (thin bar — in a detail you can drag it down to this and explore the
+  // map), 'peek' (bottom: list 25vh / detail 52vh), 'full' (top, under nav).
   const sb = document.getElementById('sidebar');
   const detail = sb && sb.classList.contains('detail-mode');
-  return { peek: Math.round(vh * (detail ? 0.52 : 0.25)), full: vh - navHeight() };
+  return { collapsed: 104, peek: Math.round(vh * (detail ? 0.52 : 0.25)), full: vh - navHeight() };
 }
 // keep the floating buttons (filter FAB + recenter) just above the sheet's top edge so
 // they stay visible while there's a map to use; once the sheet is essentially full-screen
@@ -847,13 +850,19 @@ function flyToPin(r, sheetPx) {
 function setSheetState(s) {
   const sidebar = document.getElementById('sidebar');
   if (!sidebar) return;
-  sidebar.style.height = '';
-  sidebar.style.maxHeight = '';                                     // clear drag inline; class governs height
   sidebar.classList.remove('sheet-collapsed', 'sheet-half', 'mobile-open');
-  if (s === 'collapsed') sidebar.classList.add('sheet-collapsed');
-  else if (s === 'half') sidebar.classList.add('sheet-half');
-  else if (s === 'full') sidebar.classList.add('mobile-open');
-  sidebar.dataset.sheet = s;       // 'peek' has no class
+  sidebar.style.height = '';
+  sidebar.style.maxHeight = '';
+  if (s === 'full') {
+    sidebar.classList.add('mobile-open');
+  } else if (isMobileView()) {
+    // 'collapsed' (thin bar) / 'peek' (bottom) → explicit px so the height is mode-aware
+    const H = sheetHeights();
+    const h = s === 'collapsed' ? H.collapsed : H.peek;
+    sidebar.style.height = h + 'px';
+    sidebar.style.maxHeight = h + 'px';
+  }
+  sidebar.dataset.sheet = s;       // 'peek'/'collapsed' set inline px; 'full' uses .mobile-open
   positionSheetButtons();          // buttons ride to just above the new sheet height
 }
 function setupMobileSheet() {
@@ -872,8 +881,14 @@ function setupMobileSheet() {
     positionSheetButtons(h);                           // floating buttons ride the finger
   };
   const snapToNearest = (h) => {
-    const H = sheetHeights();                            // two stops only: peek (bottom) / full (top)
-    setSheetState(Math.abs(h - H.full) < Math.abs(h - H.peek) ? 'full' : 'peek');
+    const H = sheetHeights();
+    // detail has a 3rd 'collapsed' stop (thin bar → explore the map); the list has two
+    const stops = sidebar.classList.contains('detail-mode')
+      ? [['collapsed', H.collapsed], ['peek', H.peek], ['full', H.full]]
+      : [['peek', H.peek], ['full', H.full]];
+    let best = stops[0];
+    for (const s of stops) if (Math.abs(s[1] - h) < Math.abs(best[1] - h)) best = s;
+    setSheetState(best[0]);
   };
   // the element that actually scrolls in the current state
   const activeScroller = () => {
@@ -911,7 +926,9 @@ function setupMobileSheet() {
     }
     if (mode === 'resize') {
       if (ev.cancelable) ev.preventDefault();
-      applyHeight(Math.max(H.peek, Math.min(H.full, sH + dy)));   // peek is the floor (bottom stop)
+      // detail can be dragged down to the thin 'collapsed' bar; the list floor is peek
+      const floor = sidebar.classList.contains('detail-mode') ? H.collapsed : H.peek;
+      applyHeight(Math.max(floor, Math.min(H.full, sH + dy)));
     }
     // mode 'native' → let the browser scroll the content (momentum preserved)
   };
@@ -920,7 +937,8 @@ function setupMobileSheet() {
       sidebar.classList.remove('dragging');
       snapToNearest(sidebar.getBoundingClientRect().height);
     } else if (!decided && onHandle) {
-      setSheetState(cur() === 'full' ? 'peek' : 'full');              // tap the handle to toggle
+      const c = cur();                                                // tap the handle: collapsed→peek, else toggle peek/full
+      setSheetState(c === 'collapsed' ? 'peek' : (c === 'full' ? 'peek' : 'full'));
     }
     mode = null; decided = false; onHandle = false;
   };
