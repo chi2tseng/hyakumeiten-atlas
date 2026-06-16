@@ -486,8 +486,6 @@ function isMobileView() { return window.matchMedia('(max-width: 767px)').matches
 function openDetail(r) {
   STATE.openRest = r;
   const mobile = isMobileView();
-  // pan to marker — on mobile, centre the pin in the map strip left visible above the sheet
-  flyToPin(r, mobile ? sheetHeights().peek : 0);
   // mobile: render the detail INSIDE the bottom sheet (map stays visible, Google-Maps style)
   // desktop: render into the left slide-in drawer
   const contentEl = document.getElementById(mobile ? 'sheet-detail-content' : 'drawer-content');
@@ -500,6 +498,9 @@ function openDetail(r) {
     document.getElementById('detail-drawer').classList.add('open');
     const dc = document.getElementById('drawer-content'); if (dc) dc.scrollTop = 0;
   }
+  // centre the pin in the VISIBLE map strip — AFTER the sheet state is set, so the
+  // offset matches the sheet's current height
+  flyToPin(r);
   // lazy-fetch heavy detail (reviews + gallery) then re-render if still open
   if (!r._detailLoaded) {
     loadDetail(r).then(() => { if (STATE.openRest === r) renderDetail(r, false, contentEl); });
@@ -752,7 +753,7 @@ function locateUser(recenter, silent) {
     btn.disabled = true;
   }
   if (recenter && STATE.userLocation) {
-    STATE.map.flyTo([STATE.userLocation.lat, STATE.userLocation.lng], 14, { duration: 0.6 });
+    centerInView(STATE.userLocation.lat, STATE.userLocation.lng, 14);
     if (btn) { btn.classList.remove('loading'); btn.disabled = false; btn.classList.add('located'); }
     return;
   }
@@ -760,7 +761,7 @@ function locateUser(recenter, silent) {
     (pos) => {
       const { latitude, longitude } = pos.coords;
       setUserMarker(latitude, longitude);
-      STATE.map.flyTo([latitude, longitude], 14, { duration: 0.6 });
+      centerInView(latitude, longitude, 14);
       if (btn) { btn.classList.remove('loading'); btn.disabled = false; }
     },
     (err) => {
@@ -834,18 +835,26 @@ function positionSheetButtons(heightPx) {
     el.style.pointerEvents = hide ? 'none' : 'auto';
   }
 }
-// fly to a restaurant, centering its pin in the VISIBLE map area above the bottom sheet
-function flyToPin(r, sheetPx) {
-  if (typeof r.lat !== 'number' || typeof r.lng !== 'number') return;
+// how much of the map's bottom the sheet currently covers (0 on desktop / when full)
+function sheetOffsetPx() {
+  if (!isMobileView()) return 0;
+  const sb = document.getElementById('sidebar');
+  const state = (sb && sb.dataset.sheet) || 'peek';
+  if (state === 'full') return 0;                 // sheet covers the map — no strip to centre in
+  return sheetHeights()[state] || sheetHeights().peek;
+}
+// fly so (lat,lng) lands centered in the VISIBLE map strip above the current sheet
+function centerInView(lat, lng, zoom) {
   const map = STATE.map;
-  const z = Math.max(map.getZoom(), 14);
-  if (sheetPx && isMobileView()) {
-    // push the geometric center down by half the sheet so the pin lands in the open strip
-    const pt = map.project([r.lat, r.lng], z).add([0, sheetPx / 2]);
-    map.flyTo(map.unproject(pt, z), z, { duration: 0.6 });
-  } else {
-    map.flyTo([r.lat, r.lng], z, { duration: 0.6 });
-  }
+  const z = zoom != null ? zoom : map.getZoom();
+  const off = sheetOffsetPx();                     // push the geometric centre down by half the sheet
+  const target = off > 0 ? map.unproject(map.project([lat, lng], z).add([0, off / 2]), z) : [lat, lng];
+  map.flyTo(target, z, { duration: 0.6 });
+}
+// fly to a restaurant, centering its pin in the VISIBLE map strip above the bottom sheet
+function flyToPin(r) {
+  if (typeof r.lat !== 'number' || typeof r.lng !== 'number') return;
+  centerInView(r.lat, r.lng, Math.max(STATE.map.getZoom(), 14));
 }
 function setSheetState(s) {
   const sidebar = document.getElementById('sidebar');
