@@ -78,9 +78,9 @@ function initMap() {
     zoomControl: true,
     scrollWheelZoom: true,        // native animated wheel zoom (no tile blanking)
     zoomSnap: 0,                  // land on fractional zooms for a smooth glide
-    zoomDelta: 0.5,
-    wheelDebounceTime: 18,        // batch wheel events tightly → smooth chained zooms
-    wheelPxPerZoomLevel: 110,     // gentle: more scroll per zoom level
+    zoomDelta: 0.6,
+    wheelDebounceTime: 35,        // batch a wheel fling into ONE smooth zoom (kills stutter)
+    wheelPxPerZoomLevel: 55,      // FAST: ~2× quicker zoom per scroll than before (was 110)
     zoomAnimation: true,
     fadeAnimation: true,
     markerZoomAnimation: false,   // don't re-animate every pin during zoom
@@ -88,7 +88,7 @@ function initMap() {
   L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
     attribution: '© OpenStreetMap',
     maxZoom: 19,
-    keepBuffer: 6,               // keep a wide ring of tiles so panning/zoom doesn't blank
+    keepBuffer: 12,              // hold a big ring of already-loaded tiles as a zoom buffer
     updateWhenZooming: false,    // hold the scaled old tiles through the zoom; swap after
     updateWhenIdle: false,
   }).addTo(STATE.map);

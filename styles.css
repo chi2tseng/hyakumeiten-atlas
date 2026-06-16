@@ -515,6 +515,11 @@ select.text-input { padding: 0 var(--md); }
 .marker-cluster-large div { background-color: rgba(250, 82, 15, 0.85); color: var(--on-primary); }
 .marker-cluster div { font-family: var(--ff-sans); font-weight: 600; color: var(--ink); }
 
+/* snappier wheel zoom: shorten Leaflet's 0.25s zoom tween so zooming feels fast.
+   Old tiles scale through the animation (updateWhenZooming:false + keepBuffer:12)
+   and stay on screen as a buffer until the new-zoom tiles finish loading. */
+.leaflet-zoom-anim .leaflet-zoom-animated { transition-duration: 0.16s; }
+
 /* ===== Drawer (detail panel) — replaces sidebar on left ===== */
 .drawer {
   position: absolute;
