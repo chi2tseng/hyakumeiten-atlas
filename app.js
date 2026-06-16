@@ -63,6 +63,7 @@ window.addEventListener('DOMContentLoaded', async () => {
   setupListeners();
   setupSheetGrip();
   setupMobileSheet();
+  setupLightbox();
   applyI18n(STATE.lang);
   await loadData();
   populateFilters();
@@ -185,27 +186,37 @@ function populateFilters() {
 
 function renderFilterOptions() {
   const dict = window.I18N[STATE.lang];
-  const prefSel = document.getElementById('pref-select');
-  const catSel  = document.getElementById('cat-select');
-  // remember selected
-  const prevPref = prefSel.value;
-  const prevCat  = catSel.value;
-  prefSel.innerHTML = `<option value="">${dict.all}</option>`;
-  for (const p of STATE.prefList) {
-    const o = document.createElement('option');
-    o.value = p;
-    o.textContent = window.translatePref(p, STATE.lang);
-    if (p === prevPref) o.selected = true;
-    prefSel.appendChild(o);
-  }
-  catSel.innerHTML = `<option value="">${dict.all}</option>`;
-  for (const c of STATE.catList) {
-    const o = document.createElement('option');
-    o.value = c;
-    o.textContent = window.translateCat(c, STATE.lang);
-    if (c === prevCat) o.selected = true;
-    catSel.appendChild(o);
-  }
+  const fill = (sel, emptyLabel, items, translate) => {
+    if (!sel) return;
+    const prev = sel.value;
+    sel.innerHTML = `<option value="">${emptyLabel}</option>`;
+    for (const it of items) {
+      const o = document.createElement('option');
+      o.value = it;
+      o.textContent = translate(it, STATE.lang);
+      if (it === prev) o.selected = true;
+      sel.appendChild(o);
+    }
+  };
+  // desktop selects show "全部" when empty; mobile chips show the dimension name
+  fill(document.getElementById('pref-select'), dict.all, STATE.prefList, window.translatePref);
+  fill(document.getElementById('cat-select'),  dict.all, STATE.catList,  window.translateCat);
+  fill(document.getElementById('m-pref'), dict['pref-label'], STATE.prefList, window.translatePref);
+  fill(document.getElementById('m-cat'),  dict['cat-label'],  STATE.catList,  window.translateCat);
+  syncChipActive();
+}
+
+// highlight a mobile chip when its filter is active
+function syncChipActive() {
+  const f = STATE.filter;
+  const setA = (id, on) => { const el = document.getElementById(id); if (el) el.classList.toggle('active', !!on); };
+  setA('m-pref', f.pref);
+  setA('m-cat', f.cat);
+  setA('m-price', f.maxPrice != null);
+  setA('m-rating', f.minRating > 0);
+  setA('m-reserve', f.reserve);
+  const ms = document.getElementById('m-search');
+  if (ms && ms.parentElement) ms.parentElement.classList.toggle('active', !!f.q);
 }
 
 function setupListeners() {
@@ -268,14 +279,35 @@ function setupListeners() {
     });
   });
 
-  // copy buttons inside the detail drawer (delegated — content re-renders)
-  const dcEl = document.getElementById('drawer-content');
-  if (dcEl) dcEl.addEventListener('click', (e) => {
-    const btn = e.target.closest('.copy-btn');
-    if (!btn) return;
-    e.preventDefault();
-    copyToClipboard(btn.getAttribute('data-copy') || '', btn);
-  });
+  // mobile single-row filter chips → same STATE.filter, then refresh chip highlights
+  const wireChip = (id, apply) => {
+    const el = document.getElementById(id);
+    if (el) el.addEventListener('change', () => { apply(el.value); applyFilters(); syncChipActive(); });
+  };
+  wireChip('m-pref',    v => STATE.filter.pref = v);
+  wireChip('m-cat',     v => STATE.filter.cat = v);
+  wireChip('m-price',   v => STATE.filter.maxPrice = v ? parseInt(v, 10) : null);
+  wireChip('m-rating',  v => STATE.filter.minRating = parseFloat(v) || 0);
+  wireChip('m-reserve', v => STATE.filter.reserve = v);
+  const msearch = document.getElementById('m-search');
+  if (msearch) {
+    let mt;
+    msearch.addEventListener('input', (e) => {
+      clearTimeout(mt);
+      mt = setTimeout(() => { STATE.filter.q = e.target.value.trim().toLowerCase(); applyFilters(); syncChipActive(); }, 200);
+    });
+  }
+
+  // copy buttons inside the detail (delegated — works for both the drawer and the sheet)
+  for (const cid of ['drawer-content', 'sheet-detail-content']) {
+    const el = document.getElementById(cid);
+    if (el) el.addEventListener('click', (e) => {
+      const btn = e.target.closest('.copy-btn');
+      if (!btn) return;
+      e.preventDefault();
+      copyToClipboard(btn.getAttribute('data-copy') || '', btn);
+    });
+  }
 
   // drawer close
   document.getElementById('drawer-close').addEventListener('click', closeDrawer);
@@ -458,7 +490,6 @@ function renderDetail(r, loading, contentEl) {
   const dict = window.I18N[STATE.lang];
   const mapsQuery = encodeURIComponent(`${r.n} ${r.a || r.p || ''}`);
   const gmaps = `https://www.google.com/maps/search/?api=1&query=${mapsQuery}`;
-  const heroSrc = r.cv || (r.ph && r.ph[0]) || '';
 
   const lang = STATE.lang;
   const reviewsHtml = (r.rv && r.rv.length)
@@ -488,9 +519,10 @@ function renderDetail(r, loading, contentEl) {
 
   const cats = (r.c||'').split('/').filter(Boolean);
 
+  const photos = photosOf(r);
   contentEl.innerHTML = `
-    ${heroSrc
-      ? `<div class="detail-hero"><img src="${escapeHtml(heroSrc)}" alt=""/></div>`
+    ${photos.length
+      ? `<div class="detail-hero" data-photo="0"><img src="${escapeHtml(photos[0])}" alt=""/></div>`
       : (loading ? `<div class="detail-hero detail-hero-loading"><div class="spinner"></div></div>` : '')}
 
     <div class="detail-name-row">
@@ -528,11 +560,11 @@ function renderDetail(r, loading, contentEl) {
       </a>
     </div>
 
-    ${(r.cv || (r.ph && r.ph.length) || loading) ? `
-      <div class="section-title"><span class="msi size-16">photo_library</span> ${dict['detail-photos']}${r.ph ? ` <span class="count">${r.ph.length}</span>` : ''}</div>
-      ${r.ph && r.ph.length ? `
+    ${(photos.length || loading) ? `
+      <div class="section-title"><span class="msi size-16">photo_library</span> ${dict['detail-photos']}${photos.length ? ` <span class="count">${photos.length}</span>` : ''}</div>
+      ${photos.length ? `
         <div class="photo-grid">
-          ${r.ph.slice(0, 12).map(p => `<a class="photo-tile" href="${escapeHtml(p)}" target="_blank" rel="noopener"><img loading="lazy" src="${escapeHtml(p)}" alt=""/></a>`).join('')}
+          ${photos.slice(0, 12).map((p, i) => `<button class="photo-tile" data-photo="${i}"><img loading="lazy" src="${escapeHtml(p)}" alt=""/></button>`).join('')}
         </div>
       ` : (loading ? `<div class="detail-loading"><div class="spinner"></div></div>` : '')}
     ` : `
@@ -552,6 +584,68 @@ function closeDrawer() {
   document.getElementById('detail-drawer').classList.remove('open');
   const sb = document.getElementById('sidebar');
   if (sb) sb.classList.remove('detail-mode');   // mobile: back to the list view in the sheet
+}
+
+// ===== Photo lightbox =====
+function photosOf(r) {
+  if (!r) return [];
+  return [...new Set([r.cv, ...(r.ph || [])].filter(Boolean))];
+}
+const LIGHTBOX = { photos: [], idx: 0 };
+function renderLightbox() {
+  const { photos, idx } = LIGHTBOX;
+  const img = document.getElementById('lightbox-img');
+  if (img) img.src = photos[idx] || '';
+  const cnt = document.getElementById('lightbox-count');
+  if (cnt) cnt.textContent = `${idx + 1} / ${photos.length}`;
+  const multi = photos.length > 1;
+  document.getElementById('lightbox-prev').style.display = multi ? '' : 'none';
+  document.getElementById('lightbox-next').style.display = multi ? '' : 'none';
+}
+function openLightbox(photos, idx) {
+  if (!photos || !photos.length) return;
+  LIGHTBOX.photos = photos;
+  LIGHTBOX.idx = Math.max(0, Math.min(idx || 0, photos.length - 1));
+  renderLightbox();
+  const lb = document.getElementById('lightbox');
+  lb.classList.add('open');
+  lb.setAttribute('aria-hidden', 'false');
+}
+function lightboxStep(d) {
+  const n = LIGHTBOX.photos.length;
+  if (!n) return;
+  LIGHTBOX.idx = (LIGHTBOX.idx + d + n) % n;     // wrap around
+  renderLightbox();
+}
+function closeLightbox() {
+  const lb = document.getElementById('lightbox');
+  lb.classList.remove('open');
+  lb.setAttribute('aria-hidden', 'true');
+  document.getElementById('lightbox-img').src = '';
+}
+function setupLightbox() {
+  const lb = document.getElementById('lightbox');
+  if (!lb) return;
+  document.getElementById('lightbox-close').addEventListener('click', closeLightbox);
+  document.getElementById('lightbox-prev').addEventListener('click', (e) => { e.stopPropagation(); lightboxStep(-1); });
+  document.getElementById('lightbox-next').addEventListener('click', (e) => { e.stopPropagation(); lightboxStep(1); });
+  // tap the dark backdrop (not the photo) to close
+  lb.addEventListener('click', (e) => {
+    if (e.target === lb || e.target.classList.contains('lightbox-stage')) closeLightbox();
+  });
+  document.addEventListener('keydown', (e) => {
+    if (!lb.classList.contains('open')) return;
+    if (e.key === 'Escape') closeLightbox();
+    else if (e.key === 'ArrowLeft') lightboxStep(-1);
+    else if (e.key === 'ArrowRight') lightboxStep(1);
+  });
+  // any photo in the detail (hero or grid tile) opens the lightbox at its index
+  document.addEventListener('click', (e) => {
+    const el = e.target.closest('[data-photo]');
+    if (!el) return;
+    const photos = photosOf(STATE.openRest);
+    if (photos.length) { e.preventDefault(); openLightbox(photos, parseInt(el.dataset.photo, 10) || 0); }
+  });
 }
 
 // ===== Geolocation =====

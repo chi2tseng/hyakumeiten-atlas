@@ -644,8 +644,8 @@ select.text-input { padding: 0 var(--md); }
   display: inline-flex; align-items: center; justify-content: center; gap: 6px;
 }
 .action-btn:hover { background: var(--cream-deeper); }
-.action-btn-primary { background: var(--primary); color: var(--on-primary); border-color: var(--primary); }
-.action-btn-primary:hover { background: var(--primary-deep); }
+.action-btn-primary { background: var(--canvas); color: var(--ink); border-color: var(--hairline-strong); }
+.action-btn-primary:hover { background: var(--surface); }
 
 /* brand favicon inside the action buttons (Tabelog / Google Maps) */
 .brand-ico { width: 16px; height: 16px; border-radius: 3px; flex-shrink: 0; display: inline-block; vertical-align: middle; }
@@ -990,3 +990,91 @@ select.text-input { padding: 0 var(--md); }
   padding: 28px 0;
 }
 .detail-loading .spinner { width: 28px; height: 28px; border-width: 2.5px; }
+
+/* ===== Photo lightbox ===== */
+.photo-tile, .detail-hero { cursor: zoom-in; }
+.lightbox {
+  position: fixed; inset: 0;
+  background: rgba(0,0,0,0.93);
+  z-index: 2000;
+  display: none;
+  align-items: center; justify-content: center;
+  -webkit-tap-highlight-color: transparent;
+}
+.lightbox.open { display: flex; }
+.lightbox-stage { display: flex; align-items: center; justify-content: center; }
+.lightbox-stage img {
+  max-width: 92vw; max-height: 86vh;
+  object-fit: contain; border-radius: 6px;
+  box-shadow: rgba(0,0,0,0.5) 0 8px 40px;
+}
+.lightbox-close, .lightbox-nav {
+  position: absolute;
+  border-radius: 50%;
+  background: rgba(255,255,255,0.16); color: #fff;
+  display: flex; align-items: center; justify-content: center;
+  cursor: pointer; border: 0;
+  transition: background 150ms ease, transform 150ms ease;
+}
+.lightbox-close:hover, .lightbox-nav:hover { background: rgba(255,255,255,0.30); }
+.lightbox-close:active, .lightbox-nav:active { transform: scale(0.92); }
+.lightbox-close { top: 16px; right: 16px; width: 44px; height: 44px; }
+.lightbox-close .msi { font-size: 24px; }
+.lightbox-nav { top: 50%; transform: translateY(-50%); width: 50px; height: 50px; }
+.lightbox-nav:active { transform: translateY(-50%) scale(0.92); }
+.lightbox-prev { left: 16px; }
+.lightbox-next { right: 16px; }
+.lightbox-nav .msi { font-size: 32px; }
+.lightbox-count {
+  position: absolute; bottom: 22px; left: 50%; transform: translateX(-50%);
+  color: #fff; font-size: 14px; font-weight: 500;
+  background: rgba(0,0,0,0.45); padding: 5px 14px; border-radius: var(--r-full);
+}
+@media (max-width: 767px) {
+  .lightbox-nav { width: 42px; height: 42px; }
+  .lightbox-prev { left: 8px; } .lightbox-next { right: 8px; }
+  .lightbox-nav .msi { font-size: 26px; }
+}
+
+/* ===== Mobile filter chips (Google-Maps style single row) ===== */
+.filter-chips { display: none; }
+.chip {
+  flex: 0 0 auto;
+  display: inline-flex; align-items: center; gap: 5px;
+  height: 36px; padding: 0 14px;
+  border: 1px solid var(--hairline-strong);
+  border-radius: var(--r-full);
+  background: var(--canvas);
+  color: var(--ink);
+  font-size: 14px; font-weight: 500;
+  white-space: nowrap; cursor: pointer;
+}
+.chip.active { background: var(--ink); color: var(--on-primary); border-color: var(--ink); }
+.chip .msi { font-size: 18px; color: var(--steel); }
+.chip.active .msi { color: var(--on-primary); }
+.chip-search { padding: 0 12px; }
+.chip-search input { border: 0; background: transparent; outline: 0; width: 78px; font-size: 14px; color: var(--ink); }
+.chip-search input::placeholder { color: var(--steel); }
+.chip-select {
+  -webkit-appearance: none; appearance: none;
+  padding-right: 30px;
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%238a8a8a' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'><path d='M6 9l6 6 6-6'/></svg>");
+  background-repeat: no-repeat; background-position: right 10px center;
+}
+.chip-select.active { background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23ffffff' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'><path d='M6 9l6 6 6-6'/></svg>"); }
+
+@media (max-width: 767px) {
+  /* the chip row replaces the tall vertical filter panel + the FAB */
+  .filter-chips {
+    display: flex; flex-direction: row; gap: 8px;
+    flex-shrink: 0;
+    padding: 2px 12px 10px;
+    overflow-x: auto; overflow-y: hidden;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+  }
+  .filter-chips::-webkit-scrollbar { display: none; }
+  .filter-panel { display: none !important; }
+  .mobile-filter-fab { display: none !important; }
+  .sidebar.detail-mode .filter-chips { display: none; }
+}
